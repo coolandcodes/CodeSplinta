@@ -10,7 +10,11 @@
 /**
   Basic Polyfilling
   
+  @see: http://engineering.silk.co/post/31921750832/mutation-events-what-happens/
+  @see: https://gist.github.com/RubaXa/...
+  
   # [ window.WeakMap ]
+  # [ window.MutationEvent @DOMAttrModified ] { for Old WebKit browsers ]
   # [ window.performace.mark, window.performance.now, window.performance.measure, performance.getEntriesByType, performance.getEntriesByName ]
   # [ window.requestAnimationFrame ]
   # [ window.Event.prototype.preventDefault ]
@@ -24,8 +28,51 @@
 	
   w.isTrident_IE = ((/*@cc_on!@*/false || d.uniqueID || d.createEventObject) && (w.toStaticHTML || ((d.documentMode >= 9) && ('clientInformation' in w)))
 
+  var attrModifiedMutationEventDoesntWork = function(){
+  	var attrModifiedWorks = false;
+	  
+	var listener = function(){ attrModifiedWorks = true; };
+	d.documentElement.addEventListener("DOMAttrModified", listener, false);
+	d.documentElement.setAttribute("___TEST___", true);
+	d.documentElement.removeAttribute("___TEST___", true);
+	d.documentElement.removeEventListener("DOMAttrModified", listener, false);
+	
+	return attrModifiedWorks === false;
+  };
+	
   if(!(w.WeakMap)){
   	;
+  }
+	
+  if(attrModifiedMutationEventDoesntWork()){
+      	var originalSetAttrmethod = HTMLElement.prototype.setAttribute
+
+	HTMLElement.prototype.setAttribute = function(attrName, newVal){
+	  var that = this;
+	  var prevVal = that.getAttribute(attrName);
+
+	  w.setTimeout(function(){ // Stop [ DOMSubtreeModified ] event from firing before [ DOMAttrModified ] event
+		originalSetAttrmethod.call(that, attrName, newVal);
+	  },0);
+
+	  newVal = that.getAttribute(attrName);
+	  if (newVal != prevVal)
+	  {
+	    var evt = d.createEvent("MutationEvent");
+	    evt.initMutationEvent(
+	      "DOMAttrModified",
+	      true,
+	      false,
+	      that,
+	      prevVal || "",
+	      newVal || "",
+	      attrName,
+	      (prevVal == null) ? evt.ADDITION : evt.MODIFICATION
+	    );
+		  
+	    that.dispatchEvent(evt);
+	  }
+	};
   }
 	
   if (!(w.performance && w.performance.now)) { // IE9 is a major culprit!!
