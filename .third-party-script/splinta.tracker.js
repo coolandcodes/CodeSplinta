@@ -8,7 +8,7 @@
  */
 
 /**
-  Basic Polyfilling
+  Basic Polyfilling / Workarounds
   
   @see: http://engineering.silk.co/post/31921750832/mutation-events-what-happens/
   @see: https://gist.github.com/RubaXa/...
@@ -41,12 +41,106 @@
   };
 	
   if(!(w.WeakMap)){
-  	;
+  	w.WeakMap = (function() {
+	    var defineProperty = Object.defineProperty;
+	    var counter = (new Date()*1) % 1e9;
+	    var WeakMap = function() {
+	      this.name = "__st" + (Math.random() * 1e9 >>> 0) + (counter++ + "__");
+	    };
+		
+	    WeakMap.prototype = {
+	      set: function(key, value) {
+		var entry = key[this.name];
+		if (entry && entry[0] === key) entry[1] = value; else defineProperty(key, this.name, {
+		  value: [ key, value ],
+		  writable: true
+		});
+		return this;
+	      },
+	      get: function(key) {
+		var entry;
+		return (entry = key[this.name]) && entry[0] === key ? entry[1] : undefined;
+	      },
+	      "delete": function(key) {
+		var entry = key[this.name];
+		if (!entry || entry[0] !== key) return false;
+		entry[0] = entry[1] = undefined;
+		return true;
+	      },
+	      has: function(key) {
+		var entry = key[this.name];
+		if (!entry) return false;
+		return entry[0] === key;
+	      }
+	    };
+
+	     return WeakMap;
+	})();
   }
 	
-  if(attrModifiedMutationEventDoesntWork()){
-      	var originalSetAttrmethod = HTMLElement.prototype.setAttribute
+  if((typeof w.MutationObserver !== "function" ) 
+	  && attrModifiedMutationEventDoesntWork()){
+      	var originalSetAttrmethod = HTMLElement.prototype.setAttribute;
+	var originalremAttrmethod = HTMLElement.prototype.removeAttribute;
+	  
+	// Make Old Webkit Fire Mutation Event on attribute property setter calls
+	
+	var __id_setter = Object.prototype.__lookupSetter__.call(HTMLElement.prototype, 'id');
+	var __class_setter = Object.prototype.__lookupSetter__.call(HTMLElement.prototype, 'className');
+	
+	Object.prototype.__defineSetter__.call(HTMLElement.prototype, 'id', function(newVal){
+		var that = this;
+		var prevVal = that.id;
+	  
+		w.setTimeout(function(){ // Stop [ DOMSubtreeModified ] event from firing before [ DOMAttrModified ] event
+			__id_setter.call(this, newVal);
+		},0);
+		
+		if (newVal != prevVal)
+		  {
+		    var evt = d.createEvent("MutationEvent");
+		    evt.initMutationEvent(
+		      "DOMAttrModified",
+		      true,
+		      false,
+		      that,
+		      prevVal || "",
+		      newVal || "",
+		      "id",
+		      (prevVal == null) ? evt.ADDITION : evt.MODIFICATION
+		    );
 
+		    that.dispatchEvent(evt);
+	  	}
+	});
+	  
+	Object.prototype.__defineSetter__.call(HTMLElement.prototype, 'className', function(newVal){
+		var that = this;
+		var prevVal = that.className;
+	  
+		w.setTimeout(function(){ // Stop [ DOMSubtreeModified ] event from firing before [ DOMAttrModified ] event
+			__class_setter.call(this, newVal);
+		},0);
+		
+		if (newVal != prevVal)
+		  {
+		    var evt = d.createEvent("MutationEvent");
+		    evt.initMutationEvent(
+		      "DOMAttrModified",
+		      true,
+		      false,
+		      that,
+		      prevVal || "",
+		      newVal || "",
+		      "id",
+		      (prevVal == null) ? evt.ADDITION : evt.MODIFICATION
+		    );
+
+		    that.dispatchEvent(evt);
+	  	}
+	});
+	  
+	// Old Webkit fix for [ setAttribute ] and [ removeAttribute ]
 	HTMLElement.prototype.setAttribute = function(attrName, newVal){
 	  var that = this;
 	  var prevVal = that.getAttribute(attrName);
@@ -72,6 +166,29 @@
 		  
 	    that.dispatchEvent(evt);
 	  }
+	};
+	  
+	HTMLElement.prototype.removeAttribute = function(attrName){
+		
+	  var that = this;
+	  var prevVal = that.getAttribute(attrName);
+	  
+	  w.setTimeout(function(){ // Stop [ DOMSubtreeModified ] event from firing before [ DOMAttrModified ] event
+		originalremAttrmethod.call(that, attrName);
+	  },0);
+		
+	  var evt = d.createEvent("MutationEvent");
+	  evt.initMutationEvent(
+	    "DOMAttrModified",
+	    true,
+	    false,
+	    that,
+	    prevVal,
+	    "",
+	    attrName,
+	    evt.REMOVAL
+	  );
+	  this.dispatchEvent(evt);
 	};
   }
 	
@@ -955,6 +1072,10 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
   	  var originalDesc_Input_value = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
 	  var originalDesc_Textarea_value = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value");
 
+	  if(typeof originalDesc_Input_value == "undefined"){
+	     ; // use "__lookupSetter__" & "__defineSetter__" as Chrome doesn't let you access property descriptors
+     	  }else{
+	    
 	Object.defineProperty(HTMLInputElement.prototype, "value", {
 		 configurable:originalDesc_Input_value.configurable,
 		 enumerable:originalDesc_Input_value.enumerable,
@@ -976,8 +1097,8 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
       			return originalDesc_Input_value.set.call(this, new_value);     
 		}
-	})
-	    
+	});
+	  }
     	Object.defineProperty(HTMLTextAreaElement.prototype, "value", {
 		 configurable:originalDesc_Textarea_value.configurable,
 		 enumerable:originalDesc_Textarea_value.enumerable,
