@@ -58,11 +58,11 @@ MIT
 
 This library ustilizes 2 vital ES6 entities - `Proxy` and `Symbol`
 
-- IE9+
-- Edge 14+
-- FF12+
+- Internet Explorer 9+
+- Edge 16+
+- Firefox 14+
 - Chrome 12+
-- Safari 10+
+- Safari 7+
 - Opera 15+
 
 > TLDR; For older Safari, Chrome, Firefox, Opera, IE browsers that don't support the [Proxy Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/), you can polyfill/shim using [Chrome's Proxy polyfill library](https://github.com/GoogleChrome/proxy-polyfill/) for `new Proxy({}, {});` and [Lebedev Konstantin's Performace API polyfill script](https://gist.github.com/RubaXa/8662836) as well as [Rousan Ali's Symbol polyfill library](https://github.com/rousan/symbol-es6/) if you ever need it.
