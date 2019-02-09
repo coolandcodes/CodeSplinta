@@ -22,7 +22,8 @@ const providers = [
   '@adonisjs/mail/providers/MailProvider',
   '@adonisjs/session/providers/SessionProvider',
   '@adonisjs/auth/providers/AuthProvider',
-  'lucid-mongo/providers/LucidMongoProvider'
+  'lucid-mongo/providers/LucidMongoProvider',
+  Helpers.appRoot('app/Providers/ExtenstionProvider')
 ]
 
 /*
