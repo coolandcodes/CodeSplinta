@@ -35,6 +35,8 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
+yarn.lock
+package-lock.json
 
 # TypeScript v1 declaration files
 typings/
@@ -54,8 +56,33 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
 
 # next.js build output
 .next
+
+# Adonis directory for storing tmp files
+tmp
+
+# Environment variables, never commit this file
+.env
+
+# The development sqlite file
+database/development.sqlite
+
+# VSCode & Webstorm history directories
+.history
+.idea
+
+# Compressed Files
+*.zip
+*.tar_gz
+
+# Custom DevOps & Automation Scripts
+.ops
+.bin
+
+# OS Specific Files ( Mac )
+.D_Store
+
+# Temporary Folder
+_temp

@@ -339,7 +339,15 @@
   }
 	
   if(!n.sendBeacon){
-  	;
+  	var _sendBeacon = function(url, data){
+
+	};
+
+	if(String(n.constructor).indexOf("Navigator()") + 1){
+		n.constructor.prototype.sendBeacon = _sendBeacon;
+	}else{
+		n.sendBeacon = _sendBeacon;
+	}
   }
 	
  (function(hasMuatationEvent) {
@@ -1175,7 +1183,8 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 	    	return DOMPurify.sanitize(String(value), {
 		     USE_PROFILES: {svg: true, svgFilters: true, html: true},
 		     ADD_TAGS: ['trix-editor'], // Basecamp's Trix Editor
-		     KEEP_CONTENT:false,
+		     ADD_ATTR: ['nonce'], // for Content-Security-Policy internal <script> / <style> tags
+                     KEEP_CONTENT:false,
 		     IN_PLACE:true,
 		     ALLOW_DATA_ATTR:true,
 		     FORBID_ATTR:['ping'], // <a ping="http://example.com"></a>
