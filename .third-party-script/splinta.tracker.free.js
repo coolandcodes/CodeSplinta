@@ -26,7 +26,7 @@
 ;(function(w, d, n) {
   "use strict";
 	
-  w.isTrident_IE = ((/*@cc_on!@*/false || d.uniqueID || d.createEventObject) && (w.toStaticHTML || ((d.documentMode >= 9) && ('clientInformation' in w)))
+  w.isTrident_IE = (/*@cc_on!@*/false || d.uniqueID || d.createEventObject) && (w.toStaticHTML || ((d.documentMode >= 9) && ('clientInformation' in w)))
 
   var attrModifiedMutationEventDoesntWork = function(){
   	var attrModifiedWorks = false;
@@ -39,6 +39,14 @@
 	
 	return attrModifiedWorks === false;
   };
+	
+  var isBeaconAPISupported = function(){
+  	return ('navigator' in w) && ('sendBeacon' in n);
+  };
+	
+  var isString = function(val){ return typeof val === 'string'; };
+  var isBlob = function(val){ return val instanceof w.Blob; };
+  var isObject = function(val){ return val != null && typeof val == 'object'; };
 	
   if(!(w.WeakMap)){
   	w.WeakMap = (function() {
@@ -338,10 +346,39 @@
     };
   }
 	
-  if(!n.sendBeacon){
-  	var _sendBeacon = function(url, data){
+  if(typeof n.sendBeacon !== 'function' 
+     	&& !isBeaconAPISupported()){
+  	var _sendBeacon = (function(url, data){
+		
+		var event = this.event && this.event.type;
+	  	var sync = (event === 'unload' || event === 'beforeunload');
 
-	};
+	  	var xhr = ('XMLHttpRequest' in this) 
+		? new XMLHttpRequest() 
+		: ('XDomainRequest' in this) ? new XDomainRequest() : new ActiveXObject('Microsoft.XMLHTTP');
+	  	
+		xhr.open('POST', url, !sync);
+	  	xhr.withCredentials = true;
+	  	xhr.setRequestHeader('Accept', '*/*');
+		
+		xhr.timeout = 0
+		xhr.ontimeout = function(){};
+
+	  	if (isString(data)) {
+	    	   xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
+		   xhr.responseType = 'text/plain';
+	  	} else if (isBlob(data) && data.type) {
+		    xhr.setRequestHeader('Content-Type', data.type);
+	  	}
+
+	  	try {
+		    xhr.send(data);
+	  	} catch (error) {
+		    return false;
+	  	}
+
+		return true;
+	}).bind(w);
 
 	if(String(n.constructor).indexOf("Navigator()") + 1){
 		n.constructor.prototype.sendBeacon = _sendBeacon;
