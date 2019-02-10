@@ -11,6 +11,7 @@
   Basic Polyfilling / Workarounds
   
   @see: http://engineering.silk.co/post/31921750832/mutation-events-what-happens/
+  @see: https://github.com/kronicker/sendbeacon-polyfill/blob/master/sendbeacon.js
   @see: https://gist.github.com/RubaXa/...
   
   # [ window.WeakMap ]
