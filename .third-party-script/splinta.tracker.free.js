@@ -14,6 +14,7 @@
   @see: https://github.com/kronicker/sendbeacon-polyfill/blob/master/sendbeacon.js
   @see: https://gist.github.com/RubaXa/...
   
+  # [ document.currentScript ]
   # [ window.WeakMap ]
   # [ window.MutationEvent @DOMAttrModified ] { for Old WebKit browsers ]
   # [ window.performace.mark, window.performance.now, window.performance.measure, performance.getEntriesByType, performance.getEntriesByName ]
@@ -42,12 +43,16 @@
   };
 	
   var isBeaconAPISupported = function(){
-  	return ('navigator' in w) && ('sendBeacon' in n);
+  	return (n && ('sendBeacon' in n));
   };
 	
   var isString = function(val){ return typeof val === 'string'; };
   var isBlob = function(val){ return val instanceof w.Blob; };
   var isObject = function(val){ return val != null && typeof val == 'object'; };
+	
+  if(!(d.currentScript)){
+     ;
+  }
 	
   if(!(w.WeakMap)){
   	w.WeakMap = (function() {
