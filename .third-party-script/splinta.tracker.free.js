@@ -49,9 +49,147 @@
   var isString = function(val){ return typeof val === 'string'; };
   var isBlob = function(val){ return val instanceof w.Blob; };
   var isObject = function(val){ return val != null && typeof val == 'object'; };
+  
+	var hasStack = (function() {
+	    var result = false;
+	    try {
+	      throw new Error();
+	    }
+	    catch (err) {
+	      result = typeof err.stack === "string" && !!err.stack;
+	    }
+	    return result;
+  	})();
 	
   if(!(d.currentScript)){
-     ;
+
+  	// This page's URL
+  	var pageUrl = w.location.href;
+
+  	// Live NodeList collection
+  	var scripts = d.scripts || d.getElementsByTagName("script");
+
+  	// Get script object based on the `src` URL
+  	function getScriptFromUrl(url) {
+		    if (typeof url === "string" && url) {
+		      for (var i = 0, len = scripts.length; i < len; i++) {
+			if (scripts[i].src === url) {
+			  return scripts[i];
+			}
+		      }
+		    }
+		    //return undefined;
+  	}
+
+  	// If there is only a single inline script on the page, return it; otherwise `undefined`
+  	function getSoleInlineScript() {
+	    var script;
+	    for (var i = 0, len = scripts.length; i < len; i++) {
+	      if (!scripts[i].src) {
+		if (script) {
+		  return undefined;
+		}
+		script = scripts[i];
+	      }
+	    }
+	    return script;
+  	}
+
+  	// Get the currently executing script URL from an Error stack trace
+  	function getScriptUrlFromStack(stack, skipStackDepth) {
+	    	var url, matches, remainingStack,
+		ignoreMessage = typeof skipStackDepth === "number";
+	    	skipStackDepth = ignoreMessage ? skipStackDepth : (typeof _currentScript.skipStackDepth === "number" ? _currentScript.skipStackDepth : 0);
+	    	if (typeof stack === "string" && stack) {
+			      if (ignoreMessage) {
+				  matches = stack.match(/((?:http[s]?|file):\/\/[\/]?.+?\/[^:\)]*?)(?::\d+)(?::\d+)?/);
+			      }
+			      else {
+				matches = stack.match(/^(?:|[^:@]*@|.+\)@(?=http[s]?|file)|.+?\s+(?: at |@)(?:[^:\(]+ )*[\(]?)((?:http[s]?|file):\/\/[\/]?.+?\/[^:\)]*?)(?::\d+)(?::\d+)?/);
+				if (!(matches && matches[1])) {
+				  matches = stack.match(/\)@((?:http[s]?|file):\/\/[\/]?.+?\/[^:\)]*?)(?::\d+)(?::\d+)?/);
+				  if (matches && matches[1]) {
+				    url = matches[1];
+				  }
+				}
+			      }
+
+			      if (matches && matches[1]) {
+				if (skipStackDepth > 0) {
+				  remainingStack = stack.slice(stack.indexOf(matches[0]) + matches[0].length);
+				  url = getScriptUrlFromStack(remainingStack, (skipStackDepth - 1));
+				}
+				else {
+				  url = matches[1];
+				}
+			      }
+		}
+		  
+	    	return url;
+  	}
+
+  	// Get the currently executing `script` DOM element
+  	function _currentScript() {
+		    // Yes, this IS actually possible
+		    if (scripts.length === 0) {
+		      return;  //return undefined;
+		    }
+
+		    if (scripts.length === 1) {
+		      return scripts[0];
+		    }
+
+		    if ("readyState" in scripts[0]) {
+		      for (var i = scripts.length; i--; ) {
+			if (scripts[i].readyState === "interactive") {
+			  return scripts[i];
+			}
+		      }
+		    }
+
+		    if (d.readyState === "loading") {
+		      return scripts[scripts.length - 1];
+		    }
+
+		    if (hasStack) {
+		      try {
+			throw new Error();
+		      }
+		      catch (err) {
+			// NOTE: Cannot use `err.sourceURL` or `err.fileName` as they will always be THIS script
+			var url = getScriptUrlFromStack(err.stack);
+			var script = getScriptFromUrl(url);
+			if (!script && url === pageUrl) {
+			  script = getSoleInlineScript();
+			}
+			return script;
+		      }
+		    }
+
+	    	//return undefined;
+  	}
+
+  	// Configuration
+  	_currentScript.skipStackDepth = 1;
+
+  	// Add the "private" property for testing, even if the real property can be polyfilled
+	d._currentScript = _currentScript;
+	  
+	if (d.__defineGetter__) {
+      		d.__defineGetter__("currentScript", _currentScript);
+		d.__defineSetter__("currentScript",function(){ 
+			throw new Error('Cannot set property'); 
+		})
+	}else{
+		Object.defineProperty(d, "currentScript", {
+			get: _currentScript,
+			enumerable: true,
+			configurable: false,
+			set:function(){ 
+				throw new Error('Cannot set property'); 
+			}
+		});
+	}
   }
 	
   if(!(w.WeakMap)){
@@ -705,6 +843,31 @@
   }
 	
 }(this, this.document, this.navigator));
+
+
+;(function(w, d){
+
+	var R_ATTR_NAME = 'data-reporting-endpoint';
+	var K_ATTR_NAME = 'data-public-key';
+
+	var R_ATTR_VALUE = '';
+	var K_ATTR_VALUE = '';
+
+	if (d.currentScript){
+
+	    if(d.currentScript.hasAttribute(R_ATTR_NAME)) {
+		 R_ATTR_VALUE = d.currentScript.getAttribute(R_ATTR_NAME);
+	    }
+
+	    if(!R_ATTR_VALUE && 
+		d.currentScript.hasAttribute(K_ATTR_NAME)) {
+		K_ATTR_VALUE = d.currentScript.getAttribute(K_ATTR_NAME);
+	    }
+	}
+	
+	w.CODE_SPLINTA = {'reporting-endpoint':R_ATTR_VALUE, "public-key":K_ATTR_NAME}
+	
+}(this, this.document));
 
 /**
  Redirect [ Console ] output to a remote server when the 
