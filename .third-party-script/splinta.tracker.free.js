@@ -12,6 +12,7 @@
   
   @see: http://engineering.silk.co/post/31921750832/mutation-events-what-happens/
   @see: https://github.com/kronicker/sendbeacon-polyfill/blob/master/sendbeacon.js
+  @see: https://gist.github.com/JamesMGreene/fb4a71e060da6e26511d
   @see: https://gist.github.com/RubaXa/...
   
   # [ document.currentScript ]
