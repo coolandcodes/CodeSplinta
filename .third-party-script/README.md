@@ -3,7 +3,7 @@ ________________________________________________________________________________
 
 ## Overview
 
-A tracking library that raises DOM events / Netwrok calls when suspicious activity are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests for blackisted URI(s).
+A tracking library that raises DOM events / Netwrok calls when suspicious activity are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests to blackisted URI(s).
 
 ## Motivation
 
@@ -68,6 +68,26 @@ document.addEventListener('devtoolschange', (e) => {
 	console.log('is DevTools open ?', e.detail.open);
 	console.log('DevTools orientation: ', e.detail.orientation);
 });
+
+document.addEventListener('MutatedDOM', function(e){
+	var targetingNode = e.detail.node;
+	var targetNode = e.detail.target;
+ 
+      	switch(e.detail.action){
+		case "removed":
+			alert(targetNode.nodeName + " is being removed")
+		break;
+      	}
+
+}, false)
+```
+>Paste the following inline script in your HTML 
+
+```html
+
+<script nonce="ayM4uM53Xz8VySkp2q3" data-env="development"  data-reporting-endpoint="https://reporting.codesplinta.co/violations" data-scan-markup="true" data-public-key="key-c53sgw5TA6AF636Age6749whjw7q5634g">
+	;(function(){c;x=1,d="data-env"}();
+</script>
 ```
 
 ## License
