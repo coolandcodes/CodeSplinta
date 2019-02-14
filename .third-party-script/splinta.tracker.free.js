@@ -15,6 +15,7 @@
   @see: https://gist.github.com/JamesMGreene/fb4a71e060da6e26511d
   @see: https://gist.github.com/RubaXa/...
   
+  # [ document.head ]
   # [ document.currentScript ]
   # [ window.WeakMap ]
   # [ window.MutationEvent @DOMAttrModified ] { for Old WebKit browsers ]
@@ -61,6 +62,28 @@
 	    }
 	    return result;
   	})();
+	
+  if(!(d.head)){
+	var _getHead = function(){
+		return d.getElementsByTagName('head')[0];
+	};
+	  
+  	if (d.__defineGetter__) {
+      		d.__defineGetter__("head", _getHead);
+		d.__defineSetter__("head",function(){ 
+			throw new Error('Cannot set property'); 
+		})
+	}else{
+		Object.defineProperty(d, "head", {
+			get: _getHead,
+			enumerable: true,
+			configurable: false,
+			set:function(){ 
+				throw new Error('Cannot set property'); 
+			}
+		});
+	}
+  }
 	
   if(!(d.currentScript)){
 
@@ -845,14 +868,58 @@
 	
 }(this, this.document, this.navigator));
 
+/**
+
+: CSP response headers to set when using CodeSplinta
+
+Report-To: { "group": "csp-endpoint-wizard",
+             "max-age": 10886400,
+             "endpoints": [
+               { "url": "https://reporting.codesplinta.co/violations?for=wizard&type=csp" }
+             ] },
+           { "group": "csp-endpoint",
+             "max-age": 10886400,
+             "endpoints": [
+               { "url": "https://reporting.codesplinta.co/violations?type=csp" }
+             ] },
+           { "group": "hpkp-endpoint",
+             "max-age": 10886400,
+             "endpoints": [
+               { "url": "https://reporting.codesplinta.co/violations?type=hpkp" }
+             ] }
+
+Content-Security-Policy-Report-Only: default-src 'none'; form-action 'none'; frame-ancestors 'none'; report-uri https://reporting.codesplinta.co/violations?for=wizard&type=csp&rate_limit=true; report-to csp-endpoint-wizard
+
+Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
+X-Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
+X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
+
+*/
 
 ;(function(w, d){
 
 	var R_ATTR_NAME = 'data-reporting-endpoint';
 	var K_ATTR_NAME = 'data-public-key';
+	var E_ATTR_NAME = 'data-env';
+	var S_ATTR_NAME = 'data-scan-markup';
+	var N_ATTR_NAME = 'nonce';
 
-	var R_ATTR_VALUE = '';
+	var R_ATTR_VALUE = 'https://reporting.codesplinta.co/violations?type=';
 	var K_ATTR_VALUE = '';
+	var E_ATTR_VALUE = 'development';
+	var S_ATTR_VALUE = 'false';
+	var N_ATTR_NAME = '';
+	
+    	var metaTag = d.createElement('meta');
+	
+	/**
+		Custom CodeSPlinta <meta> tag:
+		
+		<meta name="X-CodeSplinta-CSP-Directives" content="..." extras="..."> 
+	*/
+    	var xdMetaTag = d.getElementsByName('X-CodeSplinta-CSP-Directives')[0]
+	var cspDirectives = xdMetaTag.getAttribute('content')
+	var extras = xdMetaTag.getAttribute('extras')
 
 	if (d.currentScript){
 
@@ -864,9 +931,28 @@
 		d.currentScript.hasAttribute(K_ATTR_NAME)) {
 		K_ATTR_VALUE = d.currentScript.getAttribute(K_ATTR_NAME);
 	    }
+		
+   	    if(d.currentScript.hasAttribute(R_ATTR_NAME)) {
+		 E_ATTR_VALUE = d.currentScript.getAttribute(E_ATTR_NAME);
+	    }
+		
+	    if(d.currentScript.hasAttribute(R_ATTR_NAME)) {
+		 S_ATTR_VALUE = d.currentScript.getAttribute(S_ATTR_NAME);
+	    }
 	}
 	
-	w.CODE_SPLINTA = {'reporting-endpoint':R_ATTR_VALUE, "public-key":K_ATTR_NAME}
+	w.CODE_SPLINTA = {
+		'reporting-endpoint':R_ATTR_VALUE, 
+		'public-key':K_ATTR_NAME,
+		'env':E_ATTR_NAME,
+		'scan-markup':S_ATTR_NAME
+	}
+	
+	d.addEventListener('DOMContentLoaded', function () {
+	    metaTag.setAttribute('http-equiv', 'Content-Security-Policy');
+	    metaTag.setAttribute('content', "script-src https: 'unsafe-eval' 'unsafe-redirect'");
+	    d.head.insertBefore(metaTag, xdMetaTag);
+	});
 	
 }(this, this.document));
 
