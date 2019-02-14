@@ -3,7 +3,7 @@ ________________________________________________________________________________
 
 ## Overview
 
-A tracking library that raises network events when suspicious activity are made on web apps with the intent of detecting in-progress or attempted XSS exploit.
+A tracking library that raises DOM events / Netwrok calls when suspicious activity are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests for blackisted URI(s).
 
 ## Motivation
 
@@ -17,7 +17,7 @@ So, having worked with CSP directives (in sizeable manner of mixes) myself, i be
 
 ### More Motivation (CSP Support Issues / Bugs)
 
-A bug in Chrome was fixed in v55 that allowed a would-be blocked URI from being allowed for for the "form-action" directive
+A [bug in Chrome](https://googlechromereleases.blogspot.com.au/2016/12/stable-channel-update-for-desktop.html) was fixed in v55 that allowed a would-be blocked URI from being allowed for for the "form-action" directive
 A bug also exists for CSP in Edge v17 as well that 
 
 The CSP directives below have very poor cross-browser support
@@ -42,7 +42,7 @@ This library makes use of [DOMPurify](https://www.github.com/cure53/DOMPurify/) 
 
 ## Caveats
 
-- `base-uri` and `plugin-types` directives are not considered by this library as they're hardly used out there in the wild
+- `base-uri` and `plugin-types` CSP directives are not considered by this library as they're hardly used out there in the wild
 
 ## Getting Started
 
