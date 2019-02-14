@@ -1,5 +1,4 @@
 # splinta.tracker
-
 ________________________________________________________________________________________________
 
 ## Overview
@@ -8,21 +7,42 @@ A tracking library that raises network events when suspicious activity are made 
 
 ## Motivation
 
-**Content Security Policy** (CSP) is already very mature and here to stay and a lot of product and development teams are using it to mitigate XSS attacks an alien HTTP requests from the front-end. However, attckers have figured out very nice ways of circumventing CSP.
-For instance, a simple &lt;meta&gt; tag can be used to override policy directives from a CSP HTTP Header sent from the server. Also,
-**browser extension** can start causing all manner of [policy violation errors to be reported](https://stackoverflow.com/questions/32336860/why-would-i-get-a-csp-violation-for-the-blocked-uri-about) to be repoted albiet unexpectedly. The side-effect can pile up pretty fast and begin to inflict pain in the development process.
+**Content Security Policy** (CSP) is already very mature and here to stay and a lot of product and development teams are using it to mitigate XSS attacks an alien HTTP requests from the front-end. However, attckers have figured out very nice ways of circumventing CSP level-2 and level-3. Also there are claims that CSP directives interfere with the workings of bookmarklets/browser extensions.
 
-So, having worked with CSP directives (in sizeable manner of mixes) myself, i began to try to figure out a way to do more things in a way that side-steps all the unintended side effects.
+For instance, a simple &lt;meta&gt; tag can be used to override policy directives from a CSP HTTP Header sent from the server. 
+
+Also, **browser extension** can start causing all manner of [policy violation errors to be reported](https://stackoverflow.com/questions/32336860/why-would-i-get-a-csp-violation-for-the-blocked-uri-about) to be repoted albiet unexpectedly. The side-effect can pile up pretty fast and begin to inflict pain in the development process.
+
+So, having worked with CSP directives (in sizeable manner of mixes) myself, i began to try to figure out a way to do more things in a way that side-steps all the unintended side effects. So i came around coding up a "polyfill" for CSP
+
+### More Motivation (CSP Support Issues / Bugs)
+
+A bug in Chrome was fixed in v55 that allowed a would-be blocked URI from being allowed for for the "form-action" directive
+A bug also exists for CSP in Edge v17 as well that 
+
+The CSP directives below have very poor cross-browser support
+
+- `require-sri-for`
+- `worker-src`
+
+`X-XSS-Protection` header is not supported in Firefox and has cross-browser issues too with Chrome/Safari/Edge/Internet Explorer
+older versions of Firefox do support the `reflected-xss` but it was deprected when CSP level-3 was released.
 
 ## Perks
 
 - Consistently report **Content Security Policy** (CSP) violations
+- Make it easier to implement CSP without getting bruised by the side-effects
+- Polyfill "most" **Content Security Policy** (CSP) directives (especially `connect-src`, `require-sri-for`, `worker-src`)
 - JavaScript errors reported
 - Intercept DOM manipulation activities - `appendChild()` , `removeChild()`, `replaceChild()`, `innerHTML`, `innerText`, `value`
 - Detect DevTools tampering
-- Clean/Sanitize `innerHTML`, `value` textual entries
+- Provide fallback for `X-XSS-Protection` header by cleaning/sanitizing `innerText`, `innerHTML`, `value` textual entries
 
 This library makes use of [DOMPurify](https://www.github.com/cure53/DOMPurify/) internally to clean out calls to `innerHTML`, `innerText`, `appendChild()`, `replaceChild()`, `removeChild()`, `insertBefore()`, `value`
+
+## Caveats
+
+- `base-uri` and `plugin-types` directives are not considered by this library as they're hardly used out there in the wild
 
 ## Getting Started
 
@@ -45,8 +65,8 @@ document.addEventListener('beforerequest', (e) => {
 });
 
 document.addEventListener('devtoolschange', (e) => {
-		console.log('is DevTools open ?', e.detail.open);
-		console.log('DevTools orientation: ', e.detail.orientation);
+	console.log('is DevTools open ?', e.detail.open);
+	console.log('DevTools orientation: ', e.detail.orientation);
 });
 ```
 
