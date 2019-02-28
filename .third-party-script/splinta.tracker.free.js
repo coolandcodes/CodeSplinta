@@ -1372,111 +1372,216 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 	  var originalDesc_innerText = Object.getOwnPropertyDescriptor(Element.prototype, 'innerText');
   	  var originalDesc_Input_value = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
 	  var originalDesc_Textarea_value = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value");
+	    
+	    // style-src
+	  var styleDesc = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href')
+	// script-src
+	var scriptDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src')
+	// media-src
+	var mediaDesc = Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'src')
+	// form-action
+	var formDesc = Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, 'action')
+	// frame-src | child-src
+	var frameDesc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')
+	
 
 	  if(typeof originalDesc_Input_value == "undefined"){
-	     ; // use "__lookupSetter__" & "__defineSetter__" as Chrome doesn't let you access property descriptors
+	      // use "__lookupSetter__" & "__defineSetter__" as Chrome/Safari doesn't let you access property descriptors
+	  	originalDesc_Input_value = {set:Object.prototype.__lookupSetter__.call(HTMLInputElement.prototype, "value")}
+		
+	  	Object.prototype.__defineSetter__.call(HTMLInputElement.prototype, "value", function value(_value){
+
+				var new_value = purify(_value)
+
+				if(w.console){
+					w.console.log({
+						target_api:'value',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				return originalDesc_Input_value.set.call(this, new_value);     
+		});
+		  
      	  }else{
 	    
-	Object.defineProperty(HTMLInputElement.prototype, "value", {
-		 configurable:originalDesc_Input_value.configurable,
-		 enumerable:originalDesc_Input_value.enumerable,
-		 get:originalDesc_Input_value.get,
-		 set:function value(_value){
-      			
-			var new_value = purify(_value)
-			
-			if(w.console){
-				w.console.log({
-					target_api:'value',
-					dom_tag_name:'<'+this.nodeName+'>',
-					old_value:value, 
-					new_value:new_value, 
-					action:'set', 
-					timestamp:(new Date).getTime()
-				});
-			}
+		Object.defineProperty(HTMLInputElement.prototype, "value", {
+			 configurable:originalDesc_Input_value.configurable,
+			 enumerable:originalDesc_Input_value.enumerable,
+			 get:originalDesc_Input_value.get,
+			 set:function value(_value){
 
-      			return originalDesc_Input_value.set.call(this, new_value);     
-		}
-	});
+				var new_value = purify(_value)
+
+				if(w.console){
+					w.console.log({
+						target_api:'value',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				return originalDesc_Input_value.set.call(this, new_value);     
+			}
+		});
 	  }
-    	Object.defineProperty(HTMLTextAreaElement.prototype, "value", {
-		 configurable:originalDesc_Textarea_value.configurable,
-		 enumerable:originalDesc_Textarea_value.enumerable,
-		 get:originalDesc_Textarea_value.get,
-		 set:function value(_value){
-      			
-			var new_value = purify(_value)
-			
-			if(w.console){
-				w.console.log({
-					target_api:'value',
-					dom_tag_name:'<'+this.nodeName+'>',
-					old_value:value, 
-					new_value:new_value, 
-					action:'set', 
-					timestamp:(new Date).getTime()
-				});
-			}
-
-      			return originalDesc_Textarea_value.set.call(this, new_value);     
-		}
-	})
-	  
-    	Object.defineProperty(Element.prototype, 'innerHTML', {
-		configurable:originalDesc_innerHTML.configurable,
-		enumerable:originalDesc_innerHTML.enumerable,
-		get:originalDesc_innerHTML.get,
-	    	set: function innerHTML(value) {
-			// spy on it !
-			var new_value = purify(value);
-
-			if(w.console){
-				w.console.log({
-					target_api:'innerHTML',
-					dom_tag_name:'<'+this.nodeName+'>',
-					old_value:value, 
-					new_value:new_value, 
-					action:'set', 
-					timestamp:(new Date).getTime()
-				});
-			}
-
-			// Call the original setter
-			return originalDesc_innerHTML.set.call(this, new_value);
-	    	}
-	  });
 	    
-	  Object.defineProperty(Element.prototype, 'innerText', {
-	  	configurable:originalDesc_innerText.configurable,
-		enumerable:originalDesc_innerText.enumerable,
-		get:originalDesc_innerText.get,
-	    	set: function innerText(value) {
-			// spy on it !
-			var new_value = purify(value);
+	  if(typeof originalDesc_Textarea_value == "undefined"){
+	     	// use "__lookupSetter__" & "__defineSetter__" as Chrome/Safari doesn't let you access property descriptors
+	  	
+	  	originalDesc_Textarea_value = {set:Object.prototype.__lookupSetter__.call(HTMLTextAreaElement.prototype, "value")}
+		
+	  	Object.prototype.__defineSetter__.call(HTMLTextAreaElement.prototype, "value", function value(_value){
 
-			if(w.console){
-				w.console.log({
-					target_api:'innerText',
-					dom_tag_name:'<'+this.nodeName+'>',
-					old_value:value, 
-					new_value:new_value, 
-					action:'set', 
-					timestamp:(new Date).getTime()
-				});
+				var new_value = purify(_value)
+
+				if(w.console){
+					w.console.log({
+						target_api:'value',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				return originalDesc_Textarea_value.set.call(this, new_value);     
+		});
+	  }else{
+		Object.defineProperty(HTMLTextAreaElement.prototype, "value", {
+			 configurable:originalDesc_Textarea_value.configurable,
+			 enumerable:originalDesc_Textarea_value.enumerable,
+			 get:originalDesc_Textarea_value.get,
+			 set:function value(_value){
+
+				var new_value = purify(_value)
+
+				if(w.console){
+					w.console.log({
+						target_api:'value',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				return originalDesc_Textarea_value.set.call(this, new_value);     
 			}
+		})
+	  }
+	  
+    	  if(typeof originalDesc_innerHTML == "undefined"){
+	     	// use "__lookupSetter__" & "__defineSetter__" as Chrome/Safari doesn't let you access property descriptors
+	  	
+	  	originalDesc_innerHTML = {set:Object.prototype.__lookupSetter__.call(HTMLElement.prototype, "innerHTML")}
+		
+	  	Object.prototype.__defineSetter__.call(HTMLElement.prototype, "innerHTML", function value(value){
 
-			// Call the original setter
-			return originalDesc_innerText.set.call(this, new_value);
-	    	}
-	  });
+				var new_value = purify(value)
+
+				if(w.console){
+					w.console.log({
+						target_api:'value',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				return originalDesc_innerHTML.set.call(this, new_value);     
+		});
+     	  }else{
+		Object.defineProperty(Element.prototype, 'innerHTML', {
+			configurable:originalDesc_innerHTML.configurable,
+			enumerable:originalDesc_innerHTML.enumerable,
+			get:originalDesc_innerHTML.get,
+			set: function innerHTML(value) {
+				// spy on it !
+				var new_value = purify(value);
+
+				if(w.console){
+					w.console.log({
+						target_api:'innerHTML',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				// Call the original setter
+				return originalDesc_innerHTML.set.call(this, new_value);
+			}
+		  });
+	 }
+	  
+    	 if(typeof originalDesc_innerText == "undefined"){
+		// use "__lookupSetter__" & "__defineSetter__" as Chrome/Safari doesn't let you access property descriptors
+	  	
+	  	originalDesc_innerText = {set:Object.prototype.__lookupSetter__.call(HTMLElement.prototype, "innerText")}
+		
+	  	Object.prototype.__defineSetter__.call(HTMLElement.prototype, "innerText", function value(value){
+
+				var new_value = purify(value)
+
+				if(w.console){
+					w.console.log({
+						target_api:'value',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				return originalDesc_innerText.set.call(this, new_value);     
+		});
+	 }else{
+		  Object.defineProperty(Element.prototype, 'innerText', {
+			configurable:originalDesc_innerText.configurable,
+			enumerable:originalDesc_innerText.enumerable,
+			get:originalDesc_innerText.get,
+			set: function innerText(value) {
+				
+				var new_value = purify(value);
+
+				if(w.console){
+					w.console.log({
+						target_api:'innerText',
+						dom_tag_name:'<'+this.nodeName+'>',
+						old_value:value, 
+						new_value:new_value, 
+						action:'set', 
+						timestamp:(new Date).getTime()
+					});
+				}
+
+				// Call the original setter
+				return originalDesc_innerText.set.call(this, new_value);
+			}
+		  });
+	 }
 
 	  function purify(value) {
 	  	
 	    	return DOMPurify.sanitize(String(value), {
 		     USE_PROFILES: {svg: true, svgFilters: true, html: true},
 		     ADD_TAGS: ['trix-editor'], // Basecamp's Trix Editor
-		     ADD_ATTR: ['nonce'], // for Content-Security-Policy internal <script> / <style> tags
+		     ADD_ATTR: ['nonce', 'sha257'], // for Content-Security-Policy internal <script> / <style> tags
                      KEEP_CONTENT:false,
 		     IN_PLACE:true,
 		     ALLOW_DATA_ATTR:true,
