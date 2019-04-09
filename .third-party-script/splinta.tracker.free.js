@@ -913,18 +913,18 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
   var metaTag = d.createElement('meta');
 
   var parseCSPDirectives = function(cspDirectives){
-      var _cspDirectives = cspDirectives.split(';')
-      var parsed = {}
+    var _cspDirectives = cspDirectives.split(';')
+    var parsed = {}
 
-      while(_cspDirectives.length){
-        var directive = _cspDirectives.shift()
-        var sentinel_point = directive.indexOf(' ')
-        var title = directive.substr(sentinel_point)
+    while(_cspDirectives.length){
+      var directive = _cspDirectives.shift()
+      var sentinel_point = directive.trim().indexOf(' ') + 1
+      var title = directive.substr(0, sentinel_point).trim()
 
-        parsed[title] = directive.substr(sentinel_point + 1)
-      }
+      parsed[title] = directive.substr(sentinel_point).trim()
+    }
 
-      return parsed;
+    return parsed;
   }
 	
 	/**
@@ -959,9 +959,9 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	
 	w.CODE_SPLINTA = {
 		'reporting-endpoint':R_ATTR_VALUE, 
-		'public-key':K_ATTR_NAME,
-		'env':E_ATTR_NAME,
-    'scan-markup':S_ATTR_NAME,
+		'public-key':K_ATTR_VALUE,
+		'env':E_ATTR_VALUE,
+    'scan-markup':S_ATTR_VALUE,
     'directives':parseCSPDirectives(cspDirectives)
   }
 	
@@ -1056,30 +1056,29 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 
 ;(function (w, d) {
 
-	'use strict'; // @Shim : polyfill CustomEvent for IE 8 - 11
+	  'use strict'; // @Shim : hotfix/polyfill `CustomEvent()` for IE 8 - 11
 
-	   function CEvent ( event, params ) {
+    function CEvent ( event, params ) {
 		   
-		var t, evt;
-		params = params || { bubbles: false, cancelable: false, detail: null };
-		   
-		try{
-		    evt = d.createEvent( 'CustomEvent' );
-		    evt.initCustomEvent( event, params.bubbles, params.cancelable, params.detail );
-		}catch(e){
-		    evt = d.createEventObject(w.event);
-			
-			evt.cancelBubble = !params.bubbles;
-                        evt.returnValue = !params.cancelable;
-			
-			if(typeof params.detail === "object"){
-				
-				evt.detail = params.detail;
-			}	
-		}
-		   
-		return evt;
-	  };
+        var t, evt;
+        params = params || { bubbles: false, cancelable: false, detail: null };
+          
+        try{
+            evt = d.createEvent( 'CustomEvent' );
+            evt.initCustomEvent( event, params.bubbles, params.cancelable, params.detail );
+        }catch(e){
+            evt = d.createEventObject(w.event);
+          
+            evt.cancelBubble = !params.bubbles;
+            evt.returnValue = !params.cancelable;
+          
+            if(typeof params.detail === "object"){	
+              evt.detail = params.detail;
+            }	
+        }
+          
+        return evt;
+    };
 	
 	  try {
 	    var ce = new w.CustomEvent('test');
@@ -1091,6 +1090,22 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	  }
 })(this, this.document);
 
+
+/*
+var _desc = Object.getOwnPropertyDescriptor(location, 'href')
+Object.defineProperty(Location.prototype, 'href', {
+     configurable:_desc.configurable,
+     enumerable:_desc.enumerable,
+     get:function(){
+			
+            return _desc.value;
+     },
+     set:function(v){
+         console.log("kkkkkkkkk")
+         _desc.value = v
+     }
+});
+*/
 
 
 /**
@@ -1213,9 +1228,9 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 
 	setInterval(function () {
 		
-		var widthThreshold = window.outerWidth - window.innerWidth > threshold;
-		var heightThreshold = window.outerHeight - window.innerHeight > threshold;
-		var orientation = widthThreshold ? 'vertical' : 'horizontal';
+		  var widthThreshold = window.outerWidth - window.innerWidth > threshold;
+		  var heightThreshold = window.outerHeight - window.innerHeight > threshold;
+		  var orientation = widthThreshold ? 'vertical' : 'horizontal';
     		
     		if (isBrowserZoomActiveOrDevToolsUndocked()){
 			
@@ -1224,17 +1239,17 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 			          debugger; 
           		var after = new Date().getTime(); 
           		if (after - before >= minimalUserResponseInMiliseconds) { 
-				if(!devtools.open){
+				          if(!devtools.open){
                  			emitEvent(true, orientation);
                  			devtools.open = true;
-					devtools.orientation = orientation;
-				}
+					            devtools.orientation = orientation;
+				          }
           		}else{ 
-                		if(devtools.open){
-                    			emitEvent(false, null);
-					devtools.open = false;
-					devtools.orientation = null;
-                		}
+                  if(devtools.open){
+                      emitEvent(false, null);
+					            devtools.open = false;
+					            devtools.orientation = null;
+                  }
           		} 
           
      		} else {
@@ -1252,10 +1267,10 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 			 */
 			
 			/**
-			 * When the [ Console ] isn't open in IE 9, 
+			 * When the [ Console ] isn't open in IE 9+, 
 			 * the {console} object is "undefined"
 			 *
-			 * We try to detect Chrome / Firefox / Safari / Edge
+			 * Also, we try to detect Chrome / Firefox / Safari / Edge
 			 *
 			 */ 
 			if(((w.console && w.console.log)
@@ -1373,9 +1388,40 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
 ;(function (w, d) {
 	
-    var NativeImage, NativeOpen, NativeCreateElement, NativeEventSource;
+    var NativeImage, NativeAdjacentHTML, NativeAdjacentElement, NativeOpen, NativeCreateElement, NativeEventSource;
 	
     (function() {
+
+    /** 
+     * 
+     * We wish to modify security chokepoints for certain DOM object methods that take in {DOMString | HTMLString}
+     * 
+     * [ insertAdjacentHTML ]
+     * 
+     */
+
+    NativeAdjacentHTML = Element.prototype.insertAdjacentHTML
+
+    // Element.prototype.insertAdjacentElement
+
+    Element.prototype.insertAdjacentHTML = function (position, text){
+      
+      var new_text = purify(text)
+
+      if(w.console){
+        w.console.log({
+          target_api:'insertAdjacentHTML',
+          dom_tag_name:'<'+this.nodeName+'>',
+          old_value:text, 
+          new_value:new_text,
+          santize_removed:getItemsRemovedUponSanitization(), 
+          action:'', 
+          timestamp:(new Date).getTime()
+        });
+      }
+
+      return NativeAdjacentHTML.apply(this, [position, new_text])
+    };
   
 	  /**
 	   * @see: https://stackoverflow.com/questions/39560085/change-innerhtml-set-on-the-fly
@@ -1383,7 +1429,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 	   * We wish to "spy" on [ value ], [ innerHTML ] and [ innerText ] and sanitize against
 	   * suspicious XSS-potential strings.
 	   *
-	   * So, we rely on a clear trickery to extract the property descriptor and resuse it as
+	   * So, we rely on a clear trickery to extract the property descriptor(s) and resuse it as
 	   * below to redefine the property descriptor
 	   */
 	  var originalDesc_innerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
@@ -1407,9 +1453,55 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
         configurable:originalDesc_styleSrc.configurable,
         enumerable:originalDesc_styleSrc.enumerable,
         get:originalDesc_styleSrc.get,
-        set:function value(_src){
+        set:function src(_src){
  
- 
+         var currentDirective = w.CODE_SPLINTA['directives']['style-src']
+         var directiveUnits = currentDirective.split(' ')
+         
+         var ruleSetsDefaults = {
+            enforceHTTPS:false,
+            enforceBlob:false,
+            enforceMediaStream:false,
+            enforceFileSystem:false,
+            enablesSelf:false,
+            hostsMap:[]
+         };
+
+         var ruleSets = {
+
+         }
+
+         var mark = directiveUnits.length
+
+         while(--mark){
+            var unit = directiveUnits[mark]
+            switch(unit){
+              case "https:":
+                ruleSets.enforceHTTPS = true
+              break;
+              case "filesystem:":
+                ruleSets.enforceFileSystem = true
+              break;
+              case "mediastream:":
+                ;
+              break;
+              case "blob:":
+                ruleSets.enforceBlob = true
+              break;
+              case "'self'":
+                ruleSets.enablesSelf = true
+              break;
+              case "'unsafe-inline'":
+                ;
+              break;
+              case "'unsafe-eval'":
+                ;
+              break;
+            }
+         }
+
+         Object.assign({}, ruleSetsDefaults, ruleSets)
+
          return originalDesc_styleSrc.set.call(this, _src);     
        }
      });
@@ -1421,8 +1513,9 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
         configurable:originalDesc_scriptSrc.configurable,
         enumerable:originalDesc_scriptSrc.enumerable,
         get:originalDesc_scriptSrc.get,
-        set:function value(_src){
- 
+        set:function src(_src){
+          
+         var currentDirective = w.CODE_SPLINTA['directives']['script-src']
  
          return originalDesc_scriptSrc.set.call(this, _src);     
        }
@@ -1435,9 +1528,10 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
         configurable:originalDesc_frameSrc.configurable,
         enumerable:originalDesc_frameSrc.enumerable,
         get:originalDesc_frameSrc.get,
-        set:function value(_src){
+        set:function src(_src){
  
- 
+         var currentDirective = w.CODE_SPLINTA['directives']['frame-src'] || w.CODE_SPLINTA['directives']['child-src']
+          
          return originalDesc_frameSrc.set.call(this, _src);     
        }
      });
@@ -1677,25 +1771,25 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
 
     var createImage = function () {
-        var image = new NativeImage(), event; 
+        var image = new NativeImage(); 
 
         var _image = Object.defineProperty(this, 'src', {
             set: function (srcAttr) {
 
-		event = new w.CustomEvent('beforerequest', {
-			detail: {
-				endpoint: srcAttr.toString().indexOf('http') == 0 ? w.location.origin + "/" + srcAttr : srcAttr.toString(),
-				method:"GET"
-			},
-			bubbles: false,
-			cancelable: true
-		});
+                var event = new w.CustomEvent('beforerequest', {
+                  detail: {
+                    endpoint: srcAttr.toString().indexOf('http') == 0 ? w.location.origin + "/" + srcAttr : srcAttr.toString(),
+                    method:"GET"
+                  },
+                  bubbles: false,
+                  cancelable: true
+                });
 
-		var cancelled = !d.dispatchEvent(event);
-		    
-	        if(cancelled){
-			throw new Error("Suspicious Activity: " + event.detail.endpoint + " request, as ["+ event.detail.method+"]");
-		}
+                var cancelled = !d.dispatchEvent(event);
+            
+                if(cancelled){
+                  throw new Error("Suspicious Activity: " + event.detail.endpoint + " request, as ["+ event.detail.method+"]");
+                }
 
                 image.src = srcAttr.toString();
             },
@@ -1708,22 +1802,22 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
            get:function(target, prop){
                 var _member = target[prop];
 
-		if(typeof _member == 'function'){
-		 	_member = _member.bind(target);
-		}
+                if(typeof _member == 'function'){
+                  _member = _member.bind(target);
+                }
 
-		return _member;
+                return _member;
            },
            set:function(target, prop, value){
-		if (prop === 'src') {
+		            if (prop === 'src') {
                     target[prop] = value;
-    	        }
+    	          }
 		   
-    		return image[prop] = value;
+    		        return image[prop] = value;
            }
         });
 
-	_proxy[Symbol.toStringTag] = image.constructor.name; //'HTMLImageElement';
+	      _proxy[Symbol.toStringTag] = image.constructor.name; //'HTMLImageElement';
 
         return _proxy;
 
@@ -1750,7 +1844,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
    					|| ('innerText' === prop)){
 				     _value = DOMPurify.sanitize(_value.toString(), {
 					     USE_PROFILES: {svg: true, svgFilters: true},
-					     ADD_TAGS: ['v-cloak', 'v-bind', 'v-on']
+					     IN_PLACE: true
 				     });
 			   	}
 				
@@ -1842,7 +1936,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 	 * IE8 not supported! (IE8 `Object.defineProperty` works only on DOM elements)
 	 */
 
-        Object.defineProperty(FakeImage, 'name', {
+  Object.defineProperty(FakeImage, 'name', {
   		enumerable: false,
   		configurable: false,
   		writable: false,
@@ -1994,7 +2088,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 		
 		node = DOMPurify.sanitize(node.valueOf(), {
 			IN_PLACE: true     
-	     	});
+    });
 		
 		return NativeRemoveChild.apply(this, [node.valueOf()]); 
 	};
