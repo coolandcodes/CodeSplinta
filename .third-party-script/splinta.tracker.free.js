@@ -555,10 +555,11 @@
 	}
   }
 	
- (function(hasMuatationEvent) {
-  if (w.JsMutationObserver) {
+ (function(hasMutationEvent) {
+  if (!hasMutationEvent || w.JsMutationObserver) {
     return;
   }
+
   var registrationsTable = new WeakMap();
   var setImmediate;
   if (w.isTrident_IE) {
@@ -1388,7 +1389,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
 ;(function (w, d) {
 	
-    var NativeImage, NativeAdjacentHTML, NativeAdjacentElement, NativeOpen, NativeCreateElement, NativeEventSource;
+    var NativeImage, NativeDocWrite, NativeParseFromString, NativeDocWriteLn, NativeAdjacentHTML, NativeAdjacentElement, NativeOpen, NativeCreateElement, NativeEventSource;
 	
     (function() {
 
@@ -1397,11 +1398,15 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
      * We wish to modify security chokepoints for certain DOM object methods that take in {DOMString | HTMLString}
      * 
      * [ insertAdjacentHTML ]
-     * 
+     * [ write ]
+     * [ writeln ]
+     * [ parseFromString ]
      */
 
     NativeAdjacentHTML = Element.prototype.insertAdjacentHTML
-
+    NativeDocWrite = Document.prototype.write
+    NativeDocWriteLn = Document.prototype.writeln
+    NativeParseFromString = DOMParser.prototype.parseFromString
     // Element.prototype.insertAdjacentElement
 
     Element.prototype.insertAdjacentHTML = function (position, text){
@@ -1421,6 +1426,44 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
       }
 
       return NativeAdjacentHTML.apply(this, [position, new_text])
+    };
+
+    Document.prototype.write = function (text){
+      
+      var new_text = purify(text)
+
+      if(w.console){
+        w.console.log({
+          target_api:'insertAdjacentHTML',
+          dom_tag_name:'<'+this.nodeName+'>',
+          old_value:text, 
+          new_value:new_text,
+          santize_removed:getItemsRemovedUponSanitization(), 
+          action:'', 
+          timestamp:(new Date).getTime()
+        });
+      }
+
+      return NativeDocWrite.apply(this, [new_text])
+    };
+
+    Document.prototype.writeln = function (text){
+      
+      var new_text = purify(text)
+
+      if(w.console){
+        w.console.log({
+          target_api:'insertAdjacentHTML',
+          dom_tag_name:'<'+this.nodeName+'>',
+          old_value:text, 
+          new_value:new_text,
+          santize_removed:getItemsRemovedUponSanitization(), 
+          action:'', 
+          timestamp:(new Date).getTime()
+        });
+      }
+
+      return NativeDocWriteLn.apply(this, [new_text])
     };
   
 	  /**

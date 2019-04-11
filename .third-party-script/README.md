@@ -28,6 +28,8 @@ The CSP directives below have very poor cross-browser support
 `X-XSS-Protection` header is not supported in Firefox and has cross-browser issues too with Chrome/Safari/Edge/Internet Explorer
 older versions of Firefox do support the `reflected-xss` but it was deprected when CSP level-3 was released.
 
+The `Trusted Types` [draft specification](https://github.com/WICG/trusted-types/blob/master/README.md) made popular by Googles' ideas on **Trusted HTML** and **Trusted URLs** and **Trusted Scripts** (experimental APIs) to help protect security chokepoints (injection sinks) in the DOM (or other DOM related APIs) from being easily explioted using XSS techniques using these _value objects_. This project draws inspiration from this spec document to provide protection polyfills to all major DOM APIs. We hope to provide several complimentary code interface contexts fot `Trusted Types` in the codebase for CodeSplinta.
+
 ## Perks
 
 - Consistently report **Content Security Policy** (CSP) violations
