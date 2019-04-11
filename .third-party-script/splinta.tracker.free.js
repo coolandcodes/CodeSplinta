@@ -1434,8 +1434,8 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
       if(w.console){
         w.console.log({
-          target_api:'insertAdjacentHTML',
-          dom_tag_name:'<'+this.nodeName+'>',
+          target_api:'write',
+          dom_tag_name:'<#document>',
           old_value:text, 
           new_value:new_text,
           santize_removed:getItemsRemovedUponSanitization(), 
@@ -1453,8 +1453,8 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
       if(w.console){
         w.console.log({
-          target_api:'insertAdjacentHTML',
-          dom_tag_name:'<'+this.nodeName+'>',
+          target_api:'writeLn',
+          dom_tag_name:'<#document>',
           old_value:text, 
           new_value:new_text,
           santize_removed:getItemsRemovedUponSanitization(), 
