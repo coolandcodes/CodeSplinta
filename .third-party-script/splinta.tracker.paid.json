@@ -1,8 +1,8 @@
 {
   "product":"CodeSplinta",
   "featureList":[
-      {"name":"CSP Violation Reporting" "status":"stable", "launched":false},
-      {"name":"Error Reporting" "status":"stable", "launched":false},
+      {"name":"CSP Violation Reporting", "status":"stable", "launched":false},
+      {"name":"Error Reporting", "status":"stable", "launched":false},
       {"name":"Remote SW Cache Manager", "status":"experimental", "launched":false},
       {"name":"GitHub WebHooks Profiling", "status":"idea", "launched":false},
       {"name":"JavaScript Runtime Profiling", "status":"idea", "launched":false}

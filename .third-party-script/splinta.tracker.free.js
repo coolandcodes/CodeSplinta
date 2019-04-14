@@ -48,11 +48,11 @@
   	return (n && ('sendBeacon' in n));
   };
 	
-  var isString = function(val){ return typeof val === 'string'; };
-  var isBlob = function(val){ return val instanceof w.Blob; };
-  var isObject = function(val){ return val != null && typeof val == 'object'; };
+    var isString = function(val){ return typeof val === 'string'; };
+    var isBlob = function(val){ return val instanceof w.Blob; };
+    var isObject = function(val){ return val != null && typeof val == 'object'; };
   
-	var hasStack = (function() {
+	  var hasStack = (function() {
 	    var result = false;
 	    try {
 	      throw new Error();
@@ -63,27 +63,27 @@
 	    return result;
   	})();
 	
-  if(!(d.head)){
-	var _getHead = function(){
-		return d.getElementsByTagName('head')[0];
-	};
+    if(!(d.head)){
+      var _getHead = function(){
+        return d.getElementsByTagName('head')[0];
+      };
 	  
-  	if (d.__defineGetter__) {
+  	  if (d.__defineGetter__) {
       		d.__defineGetter__("head", _getHead);
-		d.__defineSetter__("head",function(){ 
-			throw new Error('Cannot set property'); 
-		})
-	}else{
-		Object.defineProperty(d, "head", {
-			get: _getHead,
-			enumerable: true,
-			configurable: false,
-			set:function(){ 
-				throw new Error('Cannot set property'); 
-			}
-		});
-	}
-  }
+		      d.__defineSetter__("head", function(){ 
+			      throw new Error('Cannot set property'); 
+		      })
+	    }else{
+        Object.defineProperty(d, "head", {
+          get: _getHead,
+          enumerable: true,
+          configurable: false,
+          set:function(){ 
+            throw new Error('Cannot set property'); 
+          }
+        });
+	    }
+    }
 	
   if(!(d.currentScript)){
 
@@ -95,25 +95,26 @@
 
   	// Get script object based on the `src` URL
   	function getScriptFromUrl(url) {
-		    if (typeof url === "string" && url) {
-		      for (var i = 0, len = scripts.length; i < len; i++) {
-			if (scripts[i].src === url) {
-			  return scripts[i];
-			}
-		      }
-		    }
-		    //return undefined;
+      if (typeof url === "string" && url) {
+        for (var i = 0, len = scripts.length; i < len; i++) {
+          if (scripts[i].src === url) {
+            return scripts[i];
+          }
+        }
+      }
+      //return undefined;
   	}
 
   	// If there is only a single inline script on the page, return it; otherwise `undefined`
   	function getSoleInlineScript() {
-	    var script;
+      var script;
+      
 	    for (var i = 0, len = scripts.length; i < len; i++) {
 	      if (!scripts[i].src) {
-		if (script) {
-		  return undefined;
-		}
-		script = scripts[i];
+          if (script) {
+            return undefined;
+          }
+		      script = scripts[i];
 	      }
 	    }
 	    return script;
@@ -122,9 +123,11 @@
   	// Get the currently executing script URL from an Error stack trace
   	function getScriptUrlFromStack(stack, skipStackDepth) {
 	    	var url, matches, remainingStack,
-		ignoreMessage = typeof skipStackDepth === "number";
+        
+        ignoreMessage = typeof skipStackDepth === "number";
 	    	skipStackDepth = ignoreMessage ? skipStackDepth : (typeof _currentScript.skipStackDepth === "number" ? _currentScript.skipStackDepth : 0);
-	    	if (typeof stack === "string" && stack) {
+        
+        if (typeof stack === "string" && stack) {
 			      if (ignoreMessage) {
 				  matches = stack.match(/((?:http[s]?|file):\/\/[\/]?.+?\/[^:\)]*?)(?::\d+)(?::\d+)?/);
 			      }
@@ -992,17 +995,53 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	if(w.isTrident_IE && originalConsole === null) return;
 	
 	var $warn = originalConsole.warn;
-	var $error = originalConsole.error;
-	var $log = originalConsole.log;
+  var $log = originalConsole.log;
+  
+  if($log.toString() !== "function log() { [native code] }"){
+      ;
+  }
+
+  if($warn.toString() !== "function warn() { [native code] }"){
+    ;
+  }
 	
 	var __consoleOutputCache = {
-		warn:{'1445283629563':""},
-		_warn:[],
-		error:{},
-		_error:[],
+		warn:{},
 		log:{},
-		_log:[]
-	};
+  };
+
+  var warn = function warn(){
+    var data = [].slice.call(arguments)
+    var timestamp = Date.now()
+    __consoleOutputCache.warn[String(timestamp)] = String(data)
+    
+    return $warn.apply(originalConsole, data)
+  }
+
+  Object.defineProperty(warn, 'toString', {
+
+  });
+
+  originalConsole.warn = warn
+  
+  var log = function log(){
+    var data = [].slice.call(arguments)
+    var timestamp = Date.now()
+    __consoleOutputCache.log[String(timestamp)] = String(data)
+    
+    return $log.apply(originalConsole, data)
+  }
+
+  Object.defineProperty(log, 'toString', {
+    configurable:true,
+    enumerable:false,
+    writable:true,
+    value:function(){
+       return "function log() { [native code] }"
+    }
+  });
+
+  originalConsole.log = log
 	
 	var _consoleOutputCacheCallback = function(event){
 		
@@ -1023,7 +1062,7 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	var _consoleOutputPush = function(event){
 		
 		if(event.persisted){
-		
+      ;
 		}
 		
 		if(n.onLine){
