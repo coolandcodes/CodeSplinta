@@ -15,7 +15,7 @@ Also, **browser extension** can start causing all manner of [policy violation er
 
 So, having worked with CSP directives (in sizeable manner of mixes) myself, i began to try to figure out a way to do more things in a way that side-steps all the unintended side effects. So i came around coding up a "polyfill" for CSP
 
-### More Motivation (CSP Support Issues / Bugs)
+### More Motivation (CSP Cross-Browser Issues / Trusted Types Debate)
 
 A [bug in Chrome](https://googlechromereleases.blogspot.com.au/2016/12/stable-channel-update-for-desktop.html) was fixed in v55 that allowed a would-be blocked URI from being allowed for for the "form-action" directive
 A bug also exists for CSP in Edge v17 as well that 
@@ -28,7 +28,11 @@ The CSP directives below have very poor cross-browser support
 `X-XSS-Protection` header is not supported in Firefox and has cross-browser issues too with Chrome/Safari/Edge/Internet Explorer
 older versions of Firefox do support the `reflected-xss` but it was deprected when CSP level-3 was released.
 
-The `Trusted Types` [draft specification](https://github.com/WICG/trusted-types/blob/master/README.md) made popular by Googles' ideas on **Trusted HTML** and **Trusted URLs** and **Trusted Scripts** (experimental APIs) to help protect security chokepoints (injection sinks) in the DOM (or other DOM related APIs) from being easily explioted using XSS techniques using these _value objects_. This project draws inspiration from this spec document to provide protection polyfills to all major DOM APIs. We hope to provide several complimentary code interface contexts fot `Trusted Types` in the codebase for CodeSplinta.
+The `Trusted Types` [draft specification/proposal](https://github.com/WICG/trusted-types/blob/master/README.md) made popular by Googles' ideas on **Trusted HTML** and **Trusted URLs** and **Trusted Scripts** (experimental APIs) to help protect security chokepoints (injection sinks) in the DOM (or other DOM related APIs) from being easily explioted using XSS techniques using these _value objects_. This project draws inspiration from this spec document to provide protection polyfills to all major DOM APIs. We hope to provide a complimentary code interface in context for `Trusted Types` in the codebase for CodeSplinta. However, many [browser vendors are not quickly buying into the idea](https://www.chromestatus.com/feature/5650088592408576) from the feedback recieved by the chrome team. [Mozilla](https://github.com/mozilla) is especially taking it's time to [properly scrutinize](https://github.com/mozilla/standards-positions/issues/20) the `Trusted Types` spec. Mozilla complains mostly about the complexity of the API and the policy creation.
+
+Here is what one Mozilla employee said:
+
+>"Automatically sanitize within the APIs that parse strings into HTML (e.g., innerHTML). One could also debate exposing a sanitizer API to the DOM."
 
 ## Perks
 
@@ -36,15 +40,15 @@ The `Trusted Types` [draft specification](https://github.com/WICG/trusted-types/
 - Make it easier to implement CSP without getting bruised by the side-effects
 - Polyfill "most" **Content Security Policy** (CSP) directives (especially `connect-src`, `require-sri-for`, `worker-src`)
 - JavaScript errors reported
-- Intercept DOM manipulation activities - `appendChild()` , `removeChild()`, `replaceChild()`, `innerHTML`, `innerText`, `value`
+- Intercept DOM manipulation activities - `appendChild()` , `write()`, `insertAdjacentHTML()`,`insertBefore()`, `removeChild()`, `replaceChild()`, `innerHTML`, `innerText`, `value`
 - Detect DevTools tampering
 - Provide fallback for `X-XSS-Protection` header by cleaning/sanitizing `innerText`, `innerHTML`, `value` textual entries
 
-This library makes use of [DOMPurify](https://www.github.com/cure53/DOMPurify/) internally to clean out calls to `innerHTML`, `innerText`, `appendChild()`, `replaceChild()`, `removeChild()`, `insertBefore()`, `value`
+This library makes use of [DOMPurify](https://www.github.com/cure53/DOMPurify/) internally to clean out calls to `innerHTML`, `innerText`, `write()`, `insertAdjacentHTML()`,  `appendChild()`, `replaceChild()`, `removeChild()`, `insertBefore()`, `value`
 
 ## Caveats
 
-- `base-uri` and `plugin-types` CSP directives are not considered by this library as they're hardly used out there in the wild
+- `base-uri` and `plugin-types` CSP directives are not considered by this library as they're hardly used out there in the wild.
 
 ## Getting Started
 
@@ -76,9 +80,9 @@ document.addEventListener('MutatedDOM', function(e){
 	var targetNode = e.detail.target;
  
       	switch(e.detail.action){
-		case "removed":
-			alert(targetNode.nodeName + " is being removed")
-		break;
+			case "removed":
+				alert(targetNode.nodeName + " is being removed")
+			break;
       	}
 
 }, false)

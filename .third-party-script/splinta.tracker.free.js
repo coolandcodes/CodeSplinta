@@ -2158,7 +2158,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 	  // script-src
 	  var originalDesc_scriptSrc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src')
 	  // media-src
-	  var originalDesc_mediaSrc = Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'src')
+	  var originalDesc_mediaSrc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src')
 	  // form-action
 	  var originalDesc_formAction = Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, 'action')
 	  // frame-src | child-src
