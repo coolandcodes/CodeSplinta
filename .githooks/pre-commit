@@ -1,0 +1,9 @@
+#!/bin/bash
+
+DIRPATH="$(git rev-parse --absolute-git-dir)"
+
+FILE="hooks/pre-commit-hook.js"
+
+SCRIPT="$DIRPATH/$FILE"
+
+node.exe --no-warnings $SCRIPT
