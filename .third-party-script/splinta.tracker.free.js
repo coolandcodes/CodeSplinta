@@ -3262,9 +3262,9 @@ Report-To: { "group": "csp-endpoint-wizard",
 
 Content-Security-Policy-Report-Only: default-src 'none'; form-action 'none'; frame-ancestors 'none'; report-uri https://reporting.codesplinta.co/violations?for=wizard&type=csp&rate_limit=true; report-to csp-endpoint-wizard
 
-Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
-X-Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
-X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
+Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; object-src 'none'; base-uri 'none'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
+X-Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; object-src 'none'; base-uri 'none'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
+X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce-abcdefg'; script-src 'self' 'unsafe-inline' https: blob: 'nonce-abcdefg' 'strict-dynamic'; object-src 'none'; base-uri 'none'; media-src mediastream:; sandbox allow-orientation-lock allow-forms allow-scripts; report-uri https://reporting.codesplinta.co/violations?type=csp; report-to csp-endpoint
 
 */
 
@@ -3280,7 +3280,7 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	var K_ATTR_VALUE = '';
 	var E_ATTR_VALUE = 'development';
 	var S_ATTR_VALUE = 'false';
-	var N_ATTR_NAME = '';
+	var N_ATTR_VALUE = '';
 	
   var metaTag = d.createElement('meta');
 
