@@ -28,33 +28,109 @@ The CSP directives below have very poor cross-browser support
 `X-XSS-Protection` header is not supported in Firefox and has cross-browser issues too with Chrome/Safari/Edge/Internet Explorer
 older versions of Firefox do support the `reflected-xss` but it was deprected when CSP level-3 was released.
 
-The `Trusted Types` [draft specification/proposal](https://github.com/WICG/trusted-types/blob/master/README.md) made popular by Googles' ideas on **Trusted HTML** and **Trusted URLs** and **Trusted Scripts** (experimental APIs) to help protect security chokepoints (injection sinks) in the DOM (or other DOM related APIs) from being easily explioted using XSS techniques using these _value objects_. This project draws inspiration from this spec document to provide protection polyfills to all major DOM APIs. We hope to provide a complimentary code interface in context for `Trusted Types` in the codebase for CodeSplinta. However, many [browser vendors are not quickly buying into the idea](https://www.chromestatus.com/feature/5650088592408576) from the feedback recieved by the chrome team. [Mozilla](https://github.com/mozilla) is especially taking it's time to [properly scrutinize](https://github.com/mozilla/standards-positions/issues/20) the `Trusted Types` spec. Mozilla complains mostly about the complexity of the API and the policy creation.
+The `Trusted Types` [draft specification/proposal](https://github.com/WICG/trusted-types/blob/master/README.md) made popular by Googles' ideas on **Trusted HTML** and **Trusted URLs** and **Trusted Scripts** (experimental APIs) to help protect security chokepoints (injection sinks) in the DOM (or other DOM related APIs) from being easily explioted using XSS techniques using these _value objects_. This project draws inspiration from this spec document to provide protection polyfills to all major DOM APIs. *CodeSplinta* hope to provide a complimentary code interface in context for `Trusted Types` in the codebase for CodeSplinta. However, many [browser vendors are not quickly buying into the idea](https://www.chromestatus.com/feature/5650088592408576) from the feedback recieved by the chrome team. [Mozilla](https://github.com/mozilla) is especially taking it's time to [properly scrutinize](https://github.com/mozilla/standards-positions/issues/20) the `Trusted Types` spec. Mozilla complains mostly about the complexity of the API and the [attern of policy creation. However, *CodeSplinta* has an alternative ideas to those expressed by **Google** that promote a less verbose code and a easier use system that web developers don't have to struggle to adopt.
 
-Here is what one Mozilla employee said:
+
+Here is what one Mozilla employee said (about *TrustedTypes*):
 
 >"Automatically sanitize within the APIs that parse strings into HTML (e.g., innerHTML). One could also debate exposing a sanitizer API to the DOM."
 
+## Alternative {Trustedtypes} Proposal from this project
+
+>Below is a proposal on an alternative approach to *TrustedTypes*
+
+```html
+
+<!-- Set CSP meta tag -->
+<meta http-equiv="Content-Security-Policy" content="trusted-types basic-policy">
+
+```
+>The code below makes use of the [DOMPurify](https://www.github.com/cure53/DOMPurify/) library for HTML Sanitization.
+```js
+
+/**!
+ * 
+ * This version of "TrustedTypes" seeks to make the API less verbose
+ * and also to make the behaviour of the DOM API chokepoints 'configurable'
+ * 
+ * CONFIG
+ * ======
+ * > blockIncludes: stops DOM APIs that insert HTML strings from doing so
+ * 		: insertAdjacentHTML()
+ * 		: write()
+ * 		: innerHTML
+ * 		: innerText
+ * > blockNavigation: stops Navigation APIs from following a URL
+ * 		: open()
+ * 		: assign()
+ * 
+ */
+
+/* Setup config for HTML trusted types  */
+window.TrustedTypes.HTML.config = {
+    throwErrors:true,
+    blockIncludes:true,
+    reportViolation:false
+};
+
+/* Setup config for URL trusted types  */
+window.TrustedTypes.URL.config = {
+    throwErrors:true,
+    blockNavigation:true,
+    reportViolation:false
+};
+
+/* Setup policy sanitizer for HTML trusted types  */
+window.TrustedTypes.HTML.registerPolicySanitizer('basic-policy', function(TrustedType){
+    window.DOMPurify.addHook('afterSanitizeElements', function(currentNode, data, config){
+		console.log(currentNode);
+    });
+
+    return function(dirty){
+       return window.DOMPurify.sanitize(dirty, {
+		USE_PROFILES: {svg: true, svgFilters: true, html: true},
+		ADD_TAGS: ['trix-editor'], // Basecamp's Trix Editor
+		ADD_ATTR: ['nonce', 'sha257', 'target', 'aria-x-fillable'], // for Link-Able Elements / Content-Security-Policy internal <script> / <style> tags
+		KEEP_CONTENT:false,
+		IN_PLACE:true,
+		ALLOW_DATA_ATTR:true,
+		FORBID_ATTR:['ping', 'inert'], // <a ping="http://example.com/impressions"></a>
+		SAFE_FOR_JQUERY:true,
+		WHOLE_DOCUMENT:false,
+		ADD_URI_SAFE_ATTR:['href']
+		})
+    };
+});
+
+/* Setup policy sanitizer for URL trusted types  */
+window.TrustedTypes.URL.registerPolicySanitizer('basic-policy', function(TrustedType){
+    return function(url){
+      return window.URISanity.vet(url);
+    };
+});
+
+```
+
 ## Perks
 
-- Consistently report **Content Security Policy** (CSP) violations
+- Consistently report **Content Security Policy** (CSP) violations across browsers
 - Make it easier to implement CSP without getting bruised by the side-effects
 - Polyfill "most" **Content Security Policy** (CSP) directives (especially `connect-src`, `require-sri-for`, `worker-src`)
 - JavaScript errors reported
 - Intercept DOM manipulation activities - `appendChild()` , `write()`, `insertAdjacentHTML()`,`insertBefore()`, `removeChild()`, `replaceChild()`, `innerHTML`, `innerText`, `value`
-- Detect DevTools tampering
+- Detect DevTools Tampering
+- Detect Console Logs/Alerts/Prompts
 - Provide fallback for `X-XSS-Protection` header by cleaning/sanitizing `innerText`, `innerHTML`, `value` textual entries
-
-This library makes use of [DOMPurify](https://www.github.com/cure53/DOMPurify/) internally to clean out calls to `innerHTML`, `innerText`, `write()`, `insertAdjacentHTML()`,  `appendChild()`, `replaceChild()`, `removeChild()`, `insertBefore()`, `value`
 
 ## Caveats
 
-- `base-uri` and `plugin-types` CSP directives are not considered by this library as they're hardly used out there in the wild.
+- `base-uri` and `plugin-types` CSP directives are not considered by this project as they're hardly used out there in the wild.
 
-## Getting Started
+## More CodeSplinta library APIs
 
 ```js
 
-const includesDomain(refDomain, whiteList){
+const includesDomain = (refDomain, whiteList) => {
 	if(whiteList.indexOf(refDomain) + 1){
 		return true;
 	}
@@ -62,7 +138,7 @@ const includesDomain(refDomain, whiteList){
 	return false;
 }
 
-document.addEventListener('beforerequest', (e) => {
+window.document.addEventListener('beforerequest', (e) => {
     let white_list = ['https://reporting.codesplinta.co', 'https://platform.twitter.com', 'https://fonts.googleapis.com', 'https://www.youtube.com'];
     
     if(! includesDomain(e.detail.endpoint, white_list)){ 
@@ -70,12 +146,12 @@ document.addEventListener('beforerequest', (e) => {
     };
 });
 
-document.addEventListener('devtoolschange', (e) => {
+window.document.addEventListener('devtoolschange', (e) => {
 	console.log('is DevTools open ?', e.detail.open);
 	console.log('DevTools orientation: ', e.detail.orientation);
 });
 
-document.addEventListener('MutatedDOM', function(e){
+window.document.addEventListener('MutatedDOM', function(e){
 	var targetingNode = e.detail.node;
 	var targetNode = e.detail.target;
  
@@ -87,12 +163,11 @@ document.addEventListener('MutatedDOM', function(e){
 
 }, false)
 ```
->Paste the following inline script in your HTML 
+>Paste the following inline script in your HTML to use **CodeSplinta** third-party library
 
 ```html
 
-<script nonce="ayM4uM53Xz8VySkp2q3" data-env="development"  data-reporting-endpoint="https://reporting.codesplinta.co/violations" data-scan-markup="true" data-public-key="key-c53sgw5TA6AF636Age6749whjw7q5634g">
-	;(function(){c;x=1,d="data-env"}();
+<script nonce="ayM4uM53Xz8VySkp2q3" data-env="development"  data-reporting-endpoint="https://reporting.codesplinta.co/violations" data-scan-markup="true" data-public-key="key-c53sgw5TA6AF636Age6749whjw7q5634g" src="./splinta.tracker.free.js" async="async" onload="">
 </script>
 ```
 
@@ -105,7 +180,7 @@ MIT
 This library ustilizes 2 vital ES6 entities - `Proxy` and `Symbol`
 
 - Internet Explorer 9+
-- Edge 16+
+- Edge 15+
 - Firefox 14+
 - Chrome 12+
 - Safari 7+
