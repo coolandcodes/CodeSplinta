@@ -3265,7 +3265,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 ;(function(w){
 
   var $proxyHandler = {
-      get:function(name, target){
+      get:function(target, name, receiver){
           if(typeof target[name] !== 'function'){
               switch(name){
                   case 'config':
@@ -3280,9 +3280,13 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
               }
           }
       },
-      set:function(value){
+      set:function(target, name, value, receiver){
           if(typeof target[name] !== 'function'){
-              ;
+              switch(name){
+                case 'config':
+                  target['setConfig'](value || {});
+                break;
+              }
           }
       }
   };
@@ -3293,6 +3297,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
   
   function BaseTrustedType(baseDefaults){
   
+      var _confset = false
       var _config = Object.assign({}, {throwErrors:true, reportViolation: false}, baseDefaults.baseConfig);
       var _typeForms = baseDefaults.typeForms
   
@@ -3309,22 +3314,35 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
       this.getConfig = function(){
           return _config
       };
+
+      this.setConfig = function(newConfig){
+        if(_confset === false){
+          _config = Object.assign({}, this.config, newConfig);
+          _confset = true;
+        }else{
+          throw new TrustedTypesError("Operation not allowed")
+        }
+      };
   
       this.setPolicyRegistration = function(policyName, policyHook){
           if(typeof policyHook !== 'function' 
               || typeof policyName !== 'string'){
                   return false;
           }
-  
-          $registrations[this.type][policyName] = {
-              trustedType:this, // this.typeForms, this.config, this.type
-              sanitizerFn:policyHook(this)
+          
+          if(!!$registrations[this.type][policyName]){
+            throw new TrustedTypesError("Operation not allowed")
+          }else{
+            $registrations[this.type][policyName] = {
+                trustedType:this, // this.typeForms, this.config, this.type
+                sanitizerFn:policyHook(this)
+            }
           }
       };
   
-      this.destroyPolicy = function(){
+      /*this.destroyPolicy = function(){
           $registrations[this.type] = {}
-      };
+      };*/
   
       return new Proxy(this, $proxyHandler)
   }
@@ -3374,7 +3392,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
           return $registrations['url'];
       },
       get typeforms(){
-          return {html:[String], url:[String, URL]};
+          return {html:[w.String], url:[w.String, w.URL]};
       },
       get URL(){
           return new URLTrustedType({typeForms:this.typeforms['url']})
@@ -3469,7 +3487,11 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 
 	    if(d.currentScript.hasAttribute(R_ATTR_NAME)) {
 		    R_ATTR_VALUE = d.currentScript.getAttribute(R_ATTR_NAME);
-	    }
+      }
+      
+      if(d.currentScript.hasAttribute(N_ATTR_NAME)) {
+        N_ATTR_VALUE = d.currentScript.getAttribute(N_ATTR_NAME);
+      }
 
 	    if(!R_ATTR_VALUE && 
 		    d.currentScript.hasAttribute(K_ATTR_NAME)) {
@@ -3495,7 +3517,7 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	
 	d.addEventListener('DOMContentLoaded', function () {
 	    metaTag.setAttribute('http-equiv', 'Content-Security-Policy');
-	    metaTag.setAttribute('content', "script-src https: 'unsafe-eval' 'unsafe-redirect'");
+	    metaTag.setAttribute('content', "script-src 'self' 'unsafe-eval' 'unsafe-redirect' https: blob: 'nonce-"+N_ATTR_VALUE+"' 'strict-dynamic';" + cspDirectives);
 	    d.head.insertBefore(metaTag, xdMetaTag);
 	});
 	

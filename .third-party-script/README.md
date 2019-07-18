@@ -41,8 +41,8 @@ Here is what one Mozilla employee said (about *TrustedTypes*):
 
 ```html
 
-<!-- Set CSP meta tag -->
-<meta http-equiv="Content-Security-Policy" content="trusted-types basic-policy">
+<!-- Set "custom" CSP meta tag -->
+<meta http-equiv="X-CodeSplinta-CSP-Directives" content="trusted-types basic-policy; connect-src https: *.example.com">
 
 ```
 >The code below makes use of the [DOMPurify](https://www.github.com/cure53/DOMPurify/) library for HTML Sanitization.
@@ -53,16 +53,23 @@ Here is what one Mozilla employee said (about *TrustedTypes*):
  * This version of "TrustedTypes" seeks to make the API less verbose
  * and also to make the behaviour of the DOM API chokepoints 'configurable'
  * 
+ * CAVEATS
+ * =======
+ * 
+ * > Once a policy sanitizer is registered, it cannot be overwritten
+ * > Once a TrustedType config is set (modifying the default), it cannot be overwritten
+ * 
  * CONFIG
  * ======
- * > blockIncludes: stops DOM APIs that insert HTML strings from doing so
+ * > blockIncludes: stops DOM APIs from inserting (potentially unsafe) HTML strings into the DOM
  * 		: insertAdjacentHTML()
  * 		: write()
  * 		: innerHTML
  * 		: innerText
- * > blockNavigation: stops Navigation APIs from following a URL
+ * > blockNavigation: stops Navigation APIs from following a (potentially unsafe) URL in an iframe or popup window or tab window
  * 		: open()
  * 		: assign()
+ * 		: href
  * 
  */
 
@@ -87,25 +94,18 @@ window.TrustedTypes.HTML.registerPolicySanitizer('basic-policy', function(Truste
     });
 
     return function(dirty){
-       return window.DOMPurify.sanitize(dirty, {
-		USE_PROFILES: {svg: true, svgFilters: true, html: true},
-		ADD_TAGS: ['trix-editor'], // Basecamp's Trix Editor
-		ADD_ATTR: ['nonce', 'sha257', 'target', 'aria-x-fillable'], // for Link-Able Elements / Content-Security-Policy internal <script> / <style> tags
-		KEEP_CONTENT:false,
-		IN_PLACE:true,
-		ALLOW_DATA_ATTR:true,
-		FORBID_ATTR:['ping', 'inert'], // <a ping="http://example.com/impressions"></a>
-		SAFE_FOR_JQUERY:true,
-		WHOLE_DOCUMENT:false,
-		ADD_URI_SAFE_ATTR:['href']
-		})
-    };
-});
-
-/* Setup policy sanitizer for URL trusted types  */
-window.TrustedTypes.URL.registerPolicySanitizer('basic-policy', function(TrustedType){
-    return function(url){
-      return window.URISanity.vet(url);
+       	return window.DOMPurify.sanitize(dirty, {
+			USE_PROFILES: {svg: true, svgFilters: true, html: true},
+			ADD_TAGS: ['trix-editor'], // Basecamp's Trix Editor
+			ADD_ATTR: ['nonce', 'sha257', 'target', 'aria-x-fillable'], // for Link-Able Elements / Content-Security-Policy internal <script> / <style> tags
+			KEEP_CONTENT:false,
+			IN_PLACE:true,
+			ALLOW_DATA_ATTR:true,
+			FORBID_ATTR:['ping', 'inert'], // <a ping="http://example.com/impressions"></a>
+			SAFE_FOR_JQUERY:true,
+			WHOLE_DOCUMENT:false,
+			ADD_URI_SAFE_ATTR:['href']
+		});
     };
 });
 
@@ -167,7 +167,26 @@ window.document.addEventListener('MutatedDOM', function(e){
 
 ```html
 
-<script nonce="ayM4uM53Xz8VySkp2q3" data-env="development"  data-reporting-endpoint="https://reporting.codesplinta.co/violations" data-scan-markup="true" data-public-key="key-c53sgw5TA6AF636Age6749whjw7q5634g" src="./splinta.tracker.free.js" async="async" onload="">
+<script type="text/javacript" nonce="ayM4uM53Xz8VySkp2q3">
+	window.WebAppSecurity = {
+		initHandler: function(event){
+			/* Detect tampering of devtools */
+			window.document.addEventListener('devtoolschange', (e) => {
+				console.log('is DevTools open ?', e.detail.open);
+				console.log('DevTools orientation: ', e.detail.orientation);
+			});
+
+			/* Setup policy sanitizer for URL trusted types  */
+			window.TrustedTypes.URL.registerPolicySanitizer('basic-policy', function(TrustedType){
+				return function(url){
+					return window.URISanity.vet(url);
+				};
+			});
+		}
+	};
+</script>
+
+<script nonce="ayM4uM53Xz8VySkp2q3" data-env="development"  data-reporting-endpoint="https://reporting.codesplinta.co/violations" data-scan-markup="true" data-public-key="key-c53sgw5TA6AF636Age6749whjw7q5634g" src="./splinta.tracker.free.js" async="async" onload="javascript:void(WebAppSecurity.initHandler(event));">
 </script>
 ```
 
@@ -177,7 +196,7 @@ MIT
 
 ## Browser Support
 
-This library ustilizes 2 vital ES6 entities - `Proxy` and `Symbol`
+This third-party library utilizes 2 vital ES6 entities - `Proxy` and `Symbol` (polyfilled where necessary) to support the browsers below
 
 - Internet Explorer 9+
 - Edge 15+
@@ -186,4 +205,4 @@ This library ustilizes 2 vital ES6 entities - `Proxy` and `Symbol`
 - Safari 7+
 - Opera 15+
 
-> TLDR; For older Safari, Chrome, Firefox, Opera, IE browsers that don't support the [Proxy Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/), you can polyfill/shim using [Chrome's Proxy polyfill library](https://github.com/GoogleChrome/proxy-polyfill/) for `new Proxy({}, {});` and [Lebedev Konstantin's Performace API polyfill script](https://gist.github.com/RubaXa/8662836) as well as [Rousan Ali's Symbol polyfill library](https://github.com/rousan/symbol-es6/) if you ever need it.
+>TLDR; For older Safari, Chrome, Firefox, Opera, IE browsers that don't support the [Proxy Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/), you can polyfill/shim using [Chrome's Proxy polyfill library](https://github.com/GoogleChrome/proxy-polyfill/) for `new Proxy({}, {});` and [Lebedev Konstantin's Performace API polyfill script](https://gist.github.com/RubaXa/8662836) as well as [Rousan Ali's Symbol polyfill library](https://github.com/rousan/symbol-es6/) if you ever need it.
