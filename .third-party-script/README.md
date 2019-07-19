@@ -3,17 +3,17 @@ ________________________________________________________________________________
 
 ## Overview
 
-A tracking library that raises DOM events / Netwrok calls when suspicious activity are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests to blackisted URI(s).
+A tracking library that raises DOM events / Network calls when suspicious activities are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests to blackisted URI(s).
 
 ## Motivation
 
-**Content Security Policy** (CSP) is already very mature and here to stay and a lot of product and development teams are using it to mitigate XSS attacks an alien HTTP requests from the front-end. However, attckers have figured out very nice ways of circumventing CSP level-2 and level-3. Also there are claims that CSP directives interfere with the workings of bookmarklets/browser extensions.
+**Content Security Policy** (CSP) is already very mature and here to stay and a lot of product and development teams are using it to mitigate XSS attacks an alien HTTP requests from the front-end. However, attckers have figured out very nice ways of circumventing CSP level-2 and level-3. Also there are claims that CSP directives interferes with the workings of bookmarklets/browser extensions.
 
 For instance, a simple &lt;meta&gt; tag can be used to override policy directives from a CSP HTTP Header sent from the server. 
 
 Also, **browser extension** can start causing all manner of [policy violation errors to be reported](https://stackoverflow.com/questions/32336860/why-would-i-get-a-csp-violation-for-the-blocked-uri-about) to be repoted albiet unexpectedly. The side-effect can pile up pretty fast and begin to inflict pain in the development process.
 
-So, having worked with CSP directives (in sizeable manner of mixes) myself, i began to try to figure out a way to do more things in a way that side-steps all the unintended side effects. So i came around coding up a "polyfill" for CSP
+So, having worked with CSP directives (in sizeable manner of mixes) myself, I began to try to figure out a way to do more things in a way that side-steps all the unintended side effects. So I came around coding up a "polyfill" for CSP
 
 ### More Motivation (CSP Cross-Browser Issues / Trusted Types Debate)
 
