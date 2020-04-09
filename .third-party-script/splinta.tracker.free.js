@@ -1,10 +1,10 @@
 /*!
  * Splinta.tracker.js
- * Copyright (c) 2018 - 2019 Oparand - CoolCodes
+ * Copyright (c) 2018 - 2020 Oparand - CoolCodes
  *
  * @author: Ifeora Okechukwu
  * @vendor: CoolCodes
- * @version: 0.1.3
+ * @version: 0.1.4
  */
 
  /**
@@ -16,6 +16,17 @@
 	typeof define === 'function' && define.amd ? define(factory) :
 	(factory());
 }(this, (function () { 'use strict';
+		      
+/**
+ * @this {Document.domain}
+ * lock API access
+ */
+
+// IE 8, very well supported :)
+Object.defineProperty(document, 'domainMutateCount', {value: 1, writable:false});
+Object.defineProperty(document, 'domain', {configurable:false,get:undefined,set:function(domainText){
+	if(this.domainMutateCount === 0) this.domain = domainText;
+}});
 
 /**
  * @this {Promise}
