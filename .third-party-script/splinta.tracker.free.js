@@ -3561,6 +3561,25 @@ var id = win.setInterval(
    interval
   );
 }
+			 
+function isChrome74OrLater(){
+   var transitionEndSupported = ('ontransitionend' in window);
+   var klassTest = null
+   try {
+        class Klass {
+           #privateField = 0
+           getField(){
+	      return this.#privateField;
+	   }
+        }
+
+        klassTest = new Klass();
+   }catch(e){
+       klassTest = null
+   }
+
+   return klassTest !== null && klassTest.getField() === 0 && transitionEndSupported
+}
 
 function isIE10OrLater(user_agent) {
 var ua = user_agent.toLowerCase();
@@ -3590,13 +3609,21 @@ if(match && parseInt(match[1], 10) >= 11){
  return true
 }
 
-return ((typeof win.safari !== 'undefined' || navigator.vendor ==  "Apple Computer, Inc.") || false)
+return (typeof win.safari !== 'undefined' || navigator.vendor ==  "Apple Computer, Inc.")
 }
 
 function detectPrivateMode(callback) {
 var is_private;
-
-if (win.webkitRequestFileSystem 
+	
+if(isChrome74OrLater()){	
+    if('storage' in win.navigator && 'estimate' in win.navigator.storage){
+        ;/* win.navigator.storage.estimate().then(function(estimate){
+	       if(estimate.quota < 120000000){ // Incognito Mode
+                   is_private = true
+	       }
+           })*/
+    }
+}else if (win.webkitRequestFileSystem 
      && (((!!win.navigator.usb) && (typeof win.navigator.usb.getDevices === 'function')) || (true))) {
    win.webkitRequestFileSystem(
        win.TEMPORARY, 1,
@@ -4259,7 +4286,7 @@ Object.defineProperty(Location.prototype, 'href', {
 	   */
 	  var originalDesc_innerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
 	  var originalDesc_innerText = Object.getOwnPropertyDescriptor(Element.prototype, 'innerText');
-    var originalDesc_Input_value = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    	  var originalDesc_Input_value = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
 	  var originalDesc_Textarea_value = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value");
 	    
     // style-src
