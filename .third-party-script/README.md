@@ -3,9 +3,21 @@ ________________________________________________________________________________
 
 ## Overview
 
-A tracking library that raises DOM events / Network calls when suspicious activities are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests to blackisted URI(s).
+A tracking library that raises DOM events / Network calls when suspicious activities are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests to blackisted URI(s). Also, it is also able to run CSS Stress at runtime (using **requestAnimationFrame()** to run these tests without interference) tests based on [this nifty codebase](https://github.com/andyedinborough/stress-css/blob/master/stressTest.js) which has been cleaned up and included here. Finally, it detects bots using [this codebase](https//github.com/RoBYCoNTe/js-bot-detector/blob/master/bot-detector.js) which is also cleaned up and included here.
 
-## Motivation
+- Bot Intrusion Detection
+- DevTools Tamper Detection
+- XSS Attempt Detetction
+- Incognito Mode Detection
+- CSS Stress Source Detection
+
+>Future Additions
+
+- Threat Modelling
+- API Security Filtering
+- SIEM (Security Information & Event Manangement) Data System Integration
+
+## Core Motivation
 
 **Content Security Policy** (CSP) is already very mature and here to stay and a lot of product and development teams are using it to mitigate XSS attacks an alien HTTP requests from the front-end. However, attckers have figured out very nice ways of circumventing CSP level-2 and level-3. Also there are claims that CSP directives interferes with the workings of bookmarklets/browser extensions.
 
@@ -117,6 +129,8 @@ window.TrustedTypes.HTML.registerPolicySanitizer('basic-policy', function(Truste
 - Make it easier to implement CSP without getting bruised by the side-effects
 - Polyfill "most" **Content Security Policy** (CSP) directives (especially `connect-src`, `require-sri-for`, `worker-src`)
 - JavaScript errors reported
+- Bot Detection
+- CSS Stress Testing
 - Intercept DOM manipulation activities - `appendChild()` , `write()`, `insertAdjacentHTML()`,`insertBefore()`, `removeChild()`, `replaceChild()`, `innerHTML`, `innerText`, `value`
 - Detect DevTools Tampering
 - Detect Console Logs/Alerts/Prompts
