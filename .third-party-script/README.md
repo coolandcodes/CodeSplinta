@@ -6,17 +6,22 @@ ________________________________________________________________________________
 A tracking library that raises DOM events / Network calls when suspicious activities are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests to blackisted URI(s). Also, it is also able to run CSS Stress at runtime (using **requestAnimationFrame()** to run these tests without interference) tests based on [this nifty codebase](https://github.com/andyedinborough/stress-css/blob/master/stressTest.js) which has been cleaned up and included here. Finally, it detects bots using [this codebase](https://github.com/RoBYCoNTe/js-bot-detector/blob/master/bot-detector.js) which is also cleaned up and included here.
 
 - Maintainability Index Calculation
-- Bot Intrusion Detection
+- Readability Score Calculation
+- Releasability Score Calculation
 - DevTools Tamper Detection
 - XSS Attempt Detetction
-- Runtime Error Analysis (integrations with BugSnag / TrackJS)
+- CSP Violation Reports
+- Vulnerability Hotspot Detection
+- Runtime Error Analysis (integrations with Sentry / TrackJS)
 - <strike>Incognito Mode Detection</strike>
 - Code Smell Detection
+- Testability Analysis (based on Coverage & Halstead Volume Results)
 - CSS Stress Source Detection
 
 >Future Additions
 
-- Testability Analysis (based on Coverage & Halstead Volume Results)
+-
+- Bot Intrusion Detection
 - Threat Modelling
 - API Security Filtering
 - SIEM (Security Information & Event Manangement) Data System Integration
