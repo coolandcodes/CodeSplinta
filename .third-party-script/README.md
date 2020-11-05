@@ -8,6 +8,7 @@ A tracking library that raises DOM events / Network calls when suspicious activi
 - Maintainability Index Calculation
 - Readability Score Calculation
 - Releasability Score Calculation
+- Bug Density
 - DevTools Tamper Detection
 - XSS Attempt Detetction
 - CSP Violation Reports
@@ -15,7 +16,7 @@ A tracking library that raises DOM events / Network calls when suspicious activi
 - Runtime Error Analysis (integrations with Sentry / TrackJS)
 - <strike>Incognito Mode Detection</strike>
 - Code Smell Detection
-- Testability Analysis (based on Coverage & Halstead Volume Results)
+- Testability Analysis (based on Coverage, Cyclomatic Complexity & Halstead Volume Results)
 - CSS Stress Source Detection
 
 >Future Additions
