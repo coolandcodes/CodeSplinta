@@ -5,27 +5,26 @@ ________________________________________________________________________________
 
 A tracking library that raises DOM events / Network calls when suspicious activities are made on web apps with the intent of detecting in-progress/attempted XSS exploits & http requests to blackisted URI(s). Also, it is also able to run CSS Stress at runtime (using **requestAnimationFrame()** to run these tests without interference) tests based on [this nifty codebase](https://github.com/andyedinborough/stress-css/blob/master/stressTest.js) which has been cleaned up and included here. Finally, it detects bots using [this codebase](https://github.com/RoBYCoNTe/js-bot-detector/blob/master/bot-detector.js) which is also cleaned up and included here.
 
-- Maintainability Index Calculation
-- Readability Score Calculation
-- Releasability Score Calculation
+- <strike>Maintainability Index Calculation</strike>
+- <strike>Readability Score Calculation</strike>
+- <strike>Releasability Score Calculation</strike>
 - Bug Density
 - DevTools Tamper Detection
 - XSS Attempt Detetction
 - CSP Violation Reports
-- Vulnerability Hotspot Detection
-- Runtime Error Analysis (integrations with Sentry / TrackJS)
+- <strike>Vulnerability Hotspot Detection</strike>
+- Runtime Error Analysis (integrations with LogRocket / TrackJS)
 - <strike>Incognito Mode Detection</strike>
-- Code Smell Detection
-- Testability Analysis (based on Coverage, Cyclomatic Complexity & Halstead Volume Results)
+- <strike>Code Smell Detection</strike>
+- <strike>Testability Analysis (based on Coverage, Cyclomatic Complexity & Halstead Volume Results)</strike>
 - CSS Stress Source Detection
 
 >Future Additions
 
--
-- Bot Intrusion Detection
-- Threat Modelling
-- API Security Filtering
-- SIEM (Security Information & Event Manangement) Data System Integration
+- <strike>Bot Intrusion Detection</strike>
+- <strike>Threat Modelling</strike>
+- <strike>API Security Filtering</strike>
+- <strike>SIEM (Security Information & Event Manangement) Data System Integration</strike>
 
 ## Core Motivation
 
@@ -139,7 +138,6 @@ window.TrustedTypes.HTML.registerPolicySanitizer('basic-policy', function(Truste
 - Make it easier to implement CSP without getting bruised by the side-effects
 - Polyfill "most" **Content Security Policy** (CSP) directives (especially `connect-src`, `require-sri-for`, `worker-src`)
 - JavaScript errors reported
-- Bot Detection
 - CSS Stress Testing
 - Intercept DOM manipulation activities - `appendChild()` , `write()`, `insertAdjacentHTML()`,`insertBefore()`, `removeChild()`, `replaceChild()`, `innerHTML`, `innerText`, `value`
 - Detect DevTools Tampering
@@ -222,11 +220,11 @@ MIT
 
 This third-party library utilizes 2 vital ES6 entities - `Proxy` and `Symbol` (polyfilled where necessary) to support the browsers below
 
-- Internet Explorer 9+
+- Internet Explorer 10+
 - Edge 15+
-- Firefox 14+
+- Firefox 36+
 - Chrome 12+
 - Safari 7+
-- Opera 15+
+- Opera 12.1+
 
 >TLDR; For older Safari, Chrome, Firefox, Opera, IE browsers that don't support the [Proxy Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/), you can polyfill/shim using [Chrome's Proxy polyfill library](https://github.com/GoogleChrome/proxy-polyfill/) for `new Proxy({}, {});` and [Lebedev Konstantin's Performace API polyfill script](https://gist.github.com/RubaXa/8662836) as well as [Rousan Ali's Symbol polyfill library](https://github.com/rousan/symbol-es6/) if you ever need it.
