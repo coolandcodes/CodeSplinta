@@ -2810,6 +2810,10 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
 
 	if( !performance.now ){
+		if ( performance.timing && performance.timing.navigationStart ) {
+			startOffset = performance.timing.navigationStart || startOffset;
+		}
+		
 		performance.now = performance.webkitNow || performance.mozNow || performance.msNow || function (){
 			return (Date.now ? Date.now() : +(new Date)) - startOffset;
 		};
@@ -2836,10 +2840,10 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 			endMark		= _marksIndex[endMark].startTime;
 
 			_entries.push({
-				  name:			name
-				, entryType:	'measure'
-				, startTime:	startMark
-				, duration:		endMark - startMark
+				  name:	name
+				, entryType: 'measure'
+				, startTime: startMark
+				, duration: endMark - startMark
 			});
 		};
 	}
@@ -2877,6 +2881,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
      
      }());
   }
+	
   if (!w.requestAnimationFrame) {
     w.requestAnimationFrame = function() {
       var nativeRaf = w.webkitRequestAnimationFrame || w.mozRequestAnimationFrame;
@@ -3265,7 +3270,11 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
   }
 })((typeof this.MutationEvent == "function"));
 	
-  if(!w.Storage){	
+  if(!w.Storage){
+	  w.Storage = function () {};
+  }
+	
+  if( !w.Storage.prototype.hasKey ) {
 	  w.Storage.prototype.hasKey = function(key){
 		return !!this[key];
 	  };
@@ -3424,6 +3433,242 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
   
   }(this));
 
+
+
+;(function (w, d, n) {
+	
+// https://reporting.codesplinta.co/events?for=onload&type=ui-event
+// https://reporting.codesplinta.co/events?for=onunload&type=ui-event
+
+var _hiddenDocSupported = ('hidden' in d || 'mozHidden' in d || 'msHidden' in d || 'webkitHidden' in d);
+var visibilityChangeSupported = ('visibilityState' in d) || _hiddenDocSupported;
+var getPageState = function () {
+  var hidden = d.hidden || d.mozHidden || d.msHidden || d.webkitHidden;
+  if (hidden || d.visibilityState === 'hidden') {
+    return 'hidden';
+  }
+  if (d.hasFocus() || d.activeElement !== null) {
+    return 'active';
+  }
+  return 'visible';
+};
+	
+var perf = w.performance;
+var jsHeapUsed = perf.memory && perf.memory.usedJSHeapSize;
+var jsHeapTotal = perf.memory && perf.memory.totalJSHeapSize;
+
+const pageLoadEvent = function(pageEventName, pageEventGuid) {
+  var nt = perf.timing;
+	
+  var event = {
+    type: pageEventName,
+    page_load_id: pageEventGuid,
+    page_state: getPageState(),
+    // Network connectivity
+    online: n.onLine,
+    // User agent Data. We can parse the user agent into device, os name, os version,
+    // browser name, and browser version fields server-side if we want to later.
+    browsengine_data: { },
+    // Current window size & screen size stats
+    // We use a derived column in Honeycomb to also be able to query window
+    // total pixels and the ratio of window size to screen size. That way we
+    // can understand whether users are making their window as large as they can
+    // to try to fit Honeycomb content on screen, or whether they find a smaller
+    // window size more comfortable.
+    //
+    // Capture how large the user has made their current window
+    window_height: w.innerHeight,
+    window_width: w.innerWidth,
+    // Capture how large the user's entire screen is
+    screen_height: w.screen && w.screen.height,
+    screen_width: w.screen && w.screen.width,
+    // Chrome-only (for now) information on internet connection type (4g, wifi, etc.)
+    // https://developers.google.com/web/updates/2017/10/nic62
+    connection_type: n.connection && n.connection.type,
+    connection_type_effective: n.connection && n.connection.effectiveType,
+    connection_rtt: n.connection && n.connection.rtt,
+    // Navigation (page load) timings, transformed from timestamps into deltas
+    timing_unload_ms: nt.unloadEventEnd - nt.navigationStart,
+    timing_dns_end_ms: nt.domainLookupEnd - nt.navigationStart,
+    timing_ssl_end_ms: nt.connectEnd - nt.navigationStart,
+    timing_response_end_ms: nt.responseEnd - nt.navigationStart,
+    timing_dom_interactive_ms: nt.domInteractive - nt.navigationStart,
+    timing_dom_complete_ms: nt.domComplete - nt.navigationStart,
+    timing_dom_loaded_ms: nt.loadEventEnd - nt.navigationStart,
+    timing_ms_first_paint: nt.domComplete - nt.navigationStart, // Calculate page render time
+    // Some calculated navigation timing durations, for easier graphing in Honeycomb
+    // We could also use a derived column to do these calculations in the UI
+    // from the above fields if we wanted to keep our event payload smaller.
+    timing_dns_duration_ms: nt.domainLookupEnd - nt.domainLookupStart,
+    timing_ssl_duration_ms: nt.connectEnd - nt.connectStart,
+    timing_server_duration_ms: nt.responseEnd - nt.requestStart,
+    timing_dom_loaded_duration_ms: nt.loadEventEnd - nt.domComplete,
+    // Entire page load duration
+    timing_total_duration_ms: nt.loadEventEnd - nt.connectStart,
+  };
+  // First paint data via PerformancePaintTiming (Chrome only for now)
+  var hasPerfTimeline = !!w.performance.getEntriesByType;
+	
+  if (hasPerfTimeline) {
+    // Chrome Only (non-standard) - @TODO: polyfill for other browsers	    
+    var paints = w.performance.getEntriesByType("paint") || [];
+    // Loop through array of two PerformancePaintTimings and send both
+    paints.forEach(function(paint) {
+      if (paint.name === "first-paint") {
+        event.timing_ms_first_paint = paint.startTime;
+      } else if (paint.name === "first-contentful-paint") {
+        event.timing_first_contentful_paint_ms = paint.startTime;
+      }
+    });
+  }
+	
+  // Memory info (Chrome) — also send this on unload so we can compare heap size
+  // and understand how much memory we're using as the user interacts with the page
+  /*
+  if (perf.memory) {
+    event.js_heap_size_total_b = jsHeapTotal;
+    event.js_heap_size_used_b = jsHeapUsed;
+  }
+  */
+	
+  // Redirect count (inconsistent browser support)
+  // Find out if the user was redirected on their way to landing on this page,
+  // so we can have visibility into whether redirects are slowing down the experience
+  event.redirect_count =
+    w.performance.navigation &&
+    w.performance.navigation.redirectCount;
+  
+  // ResourceTiming stats
+  // We don't care about getting stats for every single static asset, but we do
+  // care about the overall count (e.g. which pages could be slow because they
+  // make a million asset requests?) and the sizes of key files (are we sending
+  // our users massive js files that could slow down their experience? should we
+  // be code-splitting for more manageable file sizes?).
+  if (hasPerfTimeline) {
+    var resources = w.performance.getEntriesByType(
+      "resource",
+    );
+	  
+    event.resource_count = resources.length;
+    // Loop through resources looking for ones that match tracked asset names
+    resources.forEach(function(resource) {
+      var resourceNames = resource.name.split("/");
+      var resourceName = resourceNames[resourceNames.length - 1];
+	    
+      if (
+        resourceName.startsWith("main.") &&
+        resourceName.endsWith(".chunk.js")
+      ) {
+        // // Don't put chars like . and / in the key name
+        var name = "main_chunk_js";
+        event['resource_' + name + '_encoded_size_kb'] = resource.encodedBodySize;
+        event['resource_' + name + '_decoded_size_kb'] = resource.decodedBodySize;
+        event['resource_' + name + '_timing_duration_ms'] =
+          resource.responseEnd - resource.startTime;
+      } else if (
+        resourceName.startsWith("main.") &&
+        resourceName.endsWith(".chunk.css")
+      ) {
+        // // Don't put chars like . and / in the key name
+        var name = "main_chunk_css";
+        event['resource_' + name + '_encoded_size_kb'] = resource.encodedBodySize;
+        event['resource_' + name + '_decoded_size_kb'] = resource.decodedBodySize;
+        event['resource_' + name + '_timing_duration_ms'] =
+          resource.responseEnd - resource.startTime;
+      }
+    });
+  }
+	
+  return event;
+};
+// Send this wide event we've constructed after the page has fully loaded
+w.addEventListener("load", function () {
+  // Wait a tick so this all runs after any onload handlers
+  w.setTimeout(function() {
+       // Sends the event to our servers for forwarding on to https://reporting.codesplinta.co
+    	w.CODE_SPLINTA.ping(
+		pageLoadEvent(
+			'load', 
+			Math.floor(Math.random() * 100000000)
+		)
+	);
+  }, 0);
+});	
+	
+// Capture a _count_ of errors that occurred while interacting with this page.
+// We use an error monitoring service (Sentry) as the source of truth for
+// information about errors, but this lets us cross-reference and ask questions
+// like, "are we ever failing to report errors to Sentry?" and "was this user's
+// experience on this page potentially impacted by JS errors?"
+var oldOnError = w.onerror;
+var errorCount = 0;
+w.onerror = function() {
+  var args = [].slice.call(arguments);
+  // call any previously defined onError handlers
+  if (oldOnError) {
+    oldOnError.apply(this, args);
+  }
+	
+  errorCount++;
+};
+	
+
+// Returns a wide event of perf/client stats to send to Honeycomb
+var pageActivityEvent = function(pageEventName, pageLoadId) {
+  // Capture how long the user kept this window or tab open for
+  var openDuration =
+    ((Date.now ? Date.now() : +(new Date)) - perf.timing.connectStart) / 1000;
+	
+  var event = {
+    type: pageEventName,
+    page_load_id: pageLoadId,
+    page_state: getPageState(),
+    online: n.onLine,
+    timestamp: (Date.now ? Date.now() : +(new Date)
+  };
+	
+  // Memory info (Chrome) — also send this on load so we can compare heap size
+  // and understand how much memory we're using as the user interacts with the page.
+  /*
+  if (perf.memory) {
+    event.js_heap_size_used_start_b = jsHeapUsed;
+    event.js_heap_size_total_b = perf.memory.totalJSHeapSize;
+    event.js_heap_size_used_b = perf.memory.usedJSHeapSize;
+    event.js_heap_change_b = perf.memory.usedJSHeapSize - jsHeapUsed;
+  }
+  */
+	
+  if( pageEventName === 'unload' ) {
+  	event.user_timing_window_open_duration_s = openDuration;
+	event.error_count = errorCount;
+  }
+	
+  return event;
+};
+
+if( visibilityChangeSupported || ('onvisibilitychange' in d) ) {
+	d.addEventListener("visibilitychange", function () {
+		return w.CODE_SPLINTA.ping(
+			pageActivityEvent(
+				'activity',
+				Math.floor(Math.random() * 100000000)
+  			)
+		);
+	});
+}
+	
+w.addEventListener("unload", function () {
+   w.CODE_SPLINTA.send(
+	pageActivityEvent(
+		'unload',
+		Math.floor(Math.random() * 100000000)
+  	)
+   );
+});
+
+	
+}(this, this.document, this.navigator));
+
 /**
 
 : CSP response headers to set when using CodeSplinta
@@ -3452,7 +3697,7 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 
 */
 
-;(function(w, d){
+;(function(w, d, n, c){
 
 	var R_ATTR_NAME = 'data-reporting-endpoint';
 	var K_ATTR_NAME = 'data-public-key';
@@ -3519,12 +3764,28 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	}
 	
 	w.CODE_SPLINTA = {
-		'reporting-endpoint':R_ATTR_VALUE, 
-		'public-key':K_ATTR_VALUE,
-		'env':E_ATTR_VALUE,
-    'scan-markup':S_ATTR_VALUE,
-    'directives':parseCSPDirectives(cspDirectives)
-  }
+		'reporting-endpoint': R_ATTR_VALUE, 
+		'public-key': K_ATTR_VALUE,
+		'env': E_ATTR_VALUE,
+    		'scan-markup': S_ATTR_VALUE,
+    		'directives': parseCSPDirectives(cspDirectives),
+		send: function(payload){
+			var pixel = new Image();
+			fetch(
+			
+			);
+			pixel.src = 'about:image';
+		},
+  		ping: function(payload) {
+		    return (
+		      n.sendBeacon(
+			      this['reporting-endpoint'] + "/event?type=ui-event&for=" + payload.type, 
+			      JSON.stringify(payload),
+		      })
+		      .catch(c.error)
+		    );
+  		},
+  	};
 	
 	d.addEventListener('DOMContentLoaded', function () {
 	    metaTag.setAttribute('http-equiv', 'Content-Security-Policy');
@@ -3532,7 +3793,7 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	    d.head.insertBefore(metaTag, xdMetaTag);
 	});
 	
-}(this, this.document));
+}(this, this.document, this.navigator, this.console || {error: function(){ }));
 
  /**
   * Detect Incognito Mode
@@ -3563,8 +3824,9 @@ var id = win.setInterval(
 }
 			 
 function isChrome74OrLater(){
-   var transitionEndSupported = ('ontransitionend' in window);
-   var klassTest = null
+   var transitionEndSupported = ('ontransitionend' in win);
+   var klassTest = null;
+	
    try {
         class Klass {
            #privateField = 0
@@ -3578,7 +3840,7 @@ function isChrome74OrLater(){
        klassTest = null
    }
 
-   return klassTest !== null && klassTest.getField() === 0 && transitionEndSupported
+   return klassTest !== null && (klassTest.getField() === 0) && transitionEndSupported
 }
 
 function isIE10OrLater(user_agent) {
