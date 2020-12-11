@@ -3441,9 +3441,9 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 // https://reporting.codesplinta.co/events?for=onunload&type=ui-event
 
 var _hiddenDocSupported = ('hidden' in d || 'mozHidden' in d || 'msHidden' in d || 'webkitHidden' in d);
-var visibilityChangeSupported = ('visibilityState' in d) || _hiddenDocSupported;
+	
 var getPageState = function () {
-  var hidden = d.hidden || d.mozHidden || d.msHidden || d.webkitHidden;
+  var hidden = _hiddenDocSupported && (d.hidden || d.mozHidden || d.msHidden || d.webkitHidden);
   if (hidden || d.visibilityState === 'hidden') {
     return 'hidden';
   }
@@ -3505,6 +3505,7 @@ const pageLoadEvent = function(pageEventName, pageEventGuid) {
     timing_dom_loaded_duration_ms: nt.loadEventEnd - nt.domComplete,
     // Entire page load duration
     timing_total_duration_ms: nt.loadEventEnd - nt.connectStart,
+    timestamp: (Date.now ? Date.now() : +(new Date)),
   };
   // First paint data via PerformancePaintTiming (Chrome only for now)
   var hasPerfTimeline = !!w.performance.getEntriesByType;
@@ -3581,18 +3582,47 @@ const pageLoadEvent = function(pageEventName, pageEventGuid) {
 	
   return event;
 };
+
+var browserFingerPrintOptions = {
+        excludes: {
+        plugins: true,
+        localStorage: true,
+        adBlock: true,
+        screenResolution: true,
+        availableScreenResolution: true,
+        enumerateDevices: true,
+        pixelRatio: true,
+        doNotTrack: true
+    },
+    preprocessor: (key, value) => {
+       if (key === 'userAgent') {
+          return n.userAgent;
+       }
+       return value;
+    }
+};
+
 // Send this wide event we've constructed after the page has fully loaded
 w.addEventListener("load", function () {
   // Wait a tick so this all runs after any onload handlers
   w.setTimeout(function() {
-       // Sends the event to our servers for forwarding on to https://reporting.codesplinta.co
-    	w.CODE_SPLINTA.ping(
-		pageLoadEvent(
-			'load', 
-			Math.floor(Math.random() * 100000000)
-		)
-	);
-  }, 0);
+       Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
+       		// Sends the event to our servers for forwarding on to https://reporting.codesplinta.co
+    		w.CODE_SPLINTA.ping(
+			pageLoadEvent(
+				'load', 
+				String(
+					Fingerprint2.x64hash128(
+						components.map(
+							function(component) { return component.value; }
+						).join(''), 
+						31
+					)
+				)
+			)
+		);
+       });
+  }, 500);
 });	
 	
 // Capture a _count_ of errors that occurred while interacting with this page.
@@ -3624,7 +3654,7 @@ var pageActivityEvent = function(pageEventName, pageLoadId) {
     page_load_id: pageLoadId,
     page_state: getPageState(),
     online: n.onLine,
-    timestamp: (Date.now ? Date.now() : +(new Date)
+    timestamp: (Date.now ? Date.now() : +(new Date))
   };
 	
   // Memory info (Chrome) — also send this on load so we can compare heap size
@@ -3646,24 +3676,49 @@ var pageActivityEvent = function(pageEventName, pageLoadId) {
   return event;
 };
 
-if( visibilityChangeSupported || ('onvisibilitychange' in d) ) {
 	d.addEventListener("visibilitychange", function () {
+	   Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
 		return w.CODE_SPLINTA.ping(
 			pageActivityEvent(
 				'activity',
-				Math.floor(Math.random() * 100000000)
+				String(
+					Fingerprint2.x64hash128(
+						components.map(
+							function(component) { return component.value; }
+						).join(''), 
+						31
+					)
+				)
   			)
 		);
+	   });
 	});
-}
+
 	
 w.addEventListener("unload", function () {
-   w.CODE_SPLINTA.send(
-	pageActivityEvent(
-		'unload',
-		Math.floor(Math.random() * 100000000)
-  	)
-   );
+    var done = false;
+	
+    Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
+   	w.CODE_SPLINTA.send(
+		pageActivityEvent(
+			'unload',
+			String(
+				Fingerprint2.x64hash128(
+					components.map(
+						function(component) { return component.value; }
+					).join(''), 
+					31
+				)
+			)
+  		)
+   	).then(function() { done = true; });
+    });
+	
+    // Force the browser to wait for the async task above finsh up
+    while(!done){	
+    	var blank = new Image();
+    	blank.src = 'about:blank';
+    }
 });
 
 	
@@ -3770,16 +3825,18 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
     		'scan-markup': S_ATTR_VALUE,
     		'directives': parseCSPDirectives(cspDirectives),
 		send: function(payload){
-			var pixel = new Image();
-			fetch(
-			
+			return (
+				fetch(this['reporting-endpoint'] + "/events?type=ui-event&for=" + payload.type, {
+					method: "POST",
+					body: JSON.stringify(payload),
+			      	})
+		      		.catch(c.error)	
 			);
-			pixel.src = 'about:image';
 		},
   		ping: function(payload) {
 		    return (
 		      n.sendBeacon(
-			      this['reporting-endpoint'] + "/event?type=ui-event&for=" + payload.type, 
+			      this['reporting-endpoint'] + "/events?type=ui-event&for=" + payload.type, 
 			      JSON.stringify(payload),
 		      })
 		      .catch(c.error)
