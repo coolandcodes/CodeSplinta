@@ -3461,7 +3461,7 @@ var perf = w.performance;
 var jsHeapUsed = perf.memory && perf.memory.usedJSHeapSize;
 var jsHeapTotal = perf.memory && perf.memory.totalJSHeapSize;
 
-const pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
+var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
   var nt = perf.timing;
 	
   var event = {
@@ -3469,6 +3469,7 @@ const pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
     page_event_id: getPageEventId(),
     browser_fp: browserFingerPrint,
     page_state: getPageState(),
+    page_prior_nav: d.referredFrom || d.referrer,
     page_last_nav: pageLastNav,
     // Network connectivity
     online: n.onLine,
@@ -4154,20 +4155,20 @@ return detectPrivateMode(function(isPrivate) {
 	if(w.isTrident_IE && originalConsole === null) return;
 	
 	var $warn = originalConsole.warn;
-  var $log = originalConsole.log;
+        var $log = originalConsole.log;
   
-  if($log.toString() !== "function log() { [native code] }"){
-      ;
-  }
+        if($log.toString() !== "function log() { [native code] }"){
+             ;
+        }
 
-  if($warn.toString() !== "function warn() { [native code] }"){
-    ;
-  }
+        if($warn.toString() !== "function warn() { [native code] }"){
+             ;
+        }
 	
 	var __consoleOutputCache = {
 		warn:{},
 		log:{},
-  };
+        };
 
   var warn = function warn(){
     var data = [].slice.call(arguments)
@@ -4226,7 +4227,7 @@ return detectPrivateMode(function(isPrivate) {
 		
 		if(n.onLine){
 			n.sendBeacon(
-				w.CODE_SPLINTA['reporting-endpoint'] + "/ping?type=console_output&uafingerprint=" + w.CODE_SPLINTA['browser-hash'], 
+				w.CODE_SPLINTA['reporting-endpoint'] + "/events?type=console_output&for=", 
 				JSON.stringify(__consoleOutputCache)
 			);
 		}else{
@@ -4237,7 +4238,7 @@ return detectPrivateMode(function(isPrivate) {
 		}
 	};
 	
-	if(!isTrident_IE && w.addEventListener){
+	if(!w.isTrident_IE && w.addEventListener){
 	
 		w.addEventListener('pageshow', _consoleOutputCacheCallback, false);
 		w.addEventListener('pagehide', _consoleOutputPush, false);
@@ -4814,17 +4815,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-				if(w.console){
-					w.console.log({
+					w.CODE_SPLINTA.track('dom_sanitized', {
 						target_api:'value',
-						dom_tag_name:'<'+this.nodeName+'>',
+						dom_tag: this.outerHTML,
 						old_value:value, 
-            new_value:new_value,
-            /*santize_removed:getItemsRemovedUponSanitization(),*/ 
+            					new_value:new_value,
+            					/*removed_elems:getItemsRemovedUponSanitization(),*/ 
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-        }
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -4861,17 +4860,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-				if(w.console){
-					w.console.log({
+					w.CODE_SPLINTA.track('dom_sanitized', {
 						target_api:'value',
-						dom_tag_name:'<'+this.nodeName+'>',
-						old_value:value, 
-            new_value:new_value,
-            /*santize_removed:getItemsRemovedUponSanitization(),*/
+						dom_tag: this.outerHTML,
+						old_value:old_value, 
+            					new_value:new_value,
+            					/*removed_elems:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-        }
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -4909,17 +4906,16 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-				if(w.console){
-					w.console.log({
+					w.CODE_SPLINTA.track('dom_sanitized', {
 						target_api:'value',
-						dom_tag_name:'<'+this.nodeName+'>',
-						old_value:value, 
-            new_value:new_value,
-            /*santize_removed:getItemsRemovedUponSanitization(),*/
+						dom_tag: this.outerHTML,
+						old_value:old_value, 
+            					new_value:new_value,
+            					/*removed_elems:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-        }
+        
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -4954,17 +4950,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-				if(w.console){
-					w.console.log({
+					w.CODE_SPLINTA.track('dom_sanitized', {
 						target_api:'value',
-						dom_tag_name:'<'+this.nodeName+'>',
-						old_value:value, 
-            new_value:new_value,
-            /*santize_removed:getItemsRemovedUponSanitization(),*/
+						dom_tag: this.outerHTML,
+						old_value:old_value, 
+            					new_value:new_value,
+            					/*removed_elem:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-        }
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -5002,17 +4996,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-				if(w.console){
-					w.console.log({
+					w.CODE_SPLINTA.track('dom_sanitized', {
 						target_api:'value',
-						dom_tag_name:'<'+this.nodeName+'>',
-						old_value:value, 
-            new_value:new_value,
-            /*santize_removed:getItemsRemovedUponSanitization(),*/
+						dom_tag: this.outerHTML,
+						old_value:old_value, 
+            					new_value:new_value,
+            					/*removed_elems:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-        }
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -5047,17 +5039,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-				if(w.console){
-					w.console.log({
+					w.CODE_SPLINTA.track('dom_sanitized',{
 						target_api:'innerHTML',
-						dom_tag_name:'<'+this.nodeName+'>',
+						dom_tag: this.outerHTML,
 						old_value:old_value, 
-            new_value:new_value, 
-            /*santize_removed:getItemsRemovedUponSanitization(),*/
+            					new_value:new_value, 
+            					/*removed_elems:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-        }
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -5078,17 +5068,15 @@ Object.defineProperty(Location.prototype, 'href', {
 
 				var new_value = purify(value)
 
-				if(w.console){
-					w.console.log({
+					w.CODE_SPLINTA.track('dom_sanitized', {
 						target_api:'value',
-						dom_tag_name:'<'+this.nodeName+'>',
-						old_value:value, 
-            new_value:new_value, 
-            santize_removed:getItemsRemovedUponSanitization(),
+						dom_tag: this.outerHTML,
+						old_value: '', 
+            					new_value:new_value, 
+            					/*removed_elems:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-				}
 
 				return originalDesc_innerText.set.call(this, new_value);     
 		});
@@ -5101,16 +5089,15 @@ Object.defineProperty(Location.prototype, 'href', {
 				
 				var new_value = purify(value);
 
-				if(w.console){
-					w.console.log({
-						target_api:'innerText',
-						dom_tag_name:'<'+this.nodeName+'>',
-						old_value:value, 
+					w.CODE_SPLINTA.track('dom_sanitized', {
+						target_api: 'innerText',
+						dom_tag: this.outerHTML,
+						old_value: '', 
 						new_value:new_value, 
+						/*removed_elems:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
 					});
-				}
 
 				// Call the original setter
 				return originalDesc_innerText.set.call(this, new_value);
@@ -5176,11 +5163,11 @@ Object.defineProperty(Location.prototype, 'href', {
                 return _member;
            },
            set:function(target, prop, value){
-		            if (prop === 'src') {
+		if (prop === 'src') {
                     target[prop] = value;
-    	          }
+    	        }
 		   
-    		        return image[prop] = value;
+    		return image[prop] = value;
            }
         });
 
@@ -5502,7 +5489,7 @@ Object.defineProperty(Location.prototype, 'href', {
 		
 		newNode = DOMPurify.sanitize(newNode.valueOf(), {
 			IN_PLACE: true     
-    });
+    		});
 		
 		return NativeInsertBefore.apply(this, [newNode.valueOf(), refNode.valueOf()]); 
 	};
