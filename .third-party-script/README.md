@@ -34,7 +34,9 @@ For instance, a simple &lt;meta&gt; tag can be used to override policy directive
 
 Also, **browser extension** can start causing all manner of [policy violation errors to be reported](https://stackoverflow.com/questions/32336860/why-would-i-get-a-csp-violation-for-the-blocked-uri-about) to be repoted albiet unexpectedly. The side-effect can pile up pretty fast and begin to inflict pain in the development process.
 
-So, having worked with CSP directives (in sizeable manner of mixes) myself, I began to try to figure out a way to do more things in a way that side-steps all the unintended side effects. So I came around coding up a "polyfill" for CSP
+So, having worked with CSP directives (in sizeable manner of mixes) myself, I began to try to figure out a way to do more things in a way that side-steps all the unintended side effects. So I came around coding up a "polyfill" for CSP.
+
+Also, **Observability** on the frontend is becoming a thing (a BIG thing). THis library wishes to collect information crtical to user behavior and tendencies. This will be powered by services like *TrackJS* , *LogRocket* and the opensource package *PerfumeJS*.
 
 ### More Motivation (CSP Cross-Browser Issues / Trusted Types Debate)
 
@@ -149,6 +151,83 @@ window.TrustedTypes.HTML.registerPolicySanitizer('basic-policy', function(Truste
 - `base-uri` and `plugin-types` CSP directives are not considered by this project as they're hardly used out there in the wild.
 
 ## More CodeSplinta library APIs
+
+>Custom Ping Event(s)
+
+```js
+
+var w = window, n = w.navigator, d = w.document, p = w.performance;
+
+var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
+  var nt = p.timing;
+	
+  var event = {
+    type: pageEventName,
+    page_event_id: getPageEventId(),
+    browser_fp: browserFingerPrint,
+    page_state: getPageState(),
+    page_prior_nav: d.referredFrom || d.referrer,
+    page_last_nav: pageLastNav,
+    // Network connectivity
+    online: n.onLine,
+    // User agent Data. We can parse the user agent into device, os name, os version,
+    // browser name, browser engine, and browser version fields if we want to later.
+    browser_ua_data: { },
+    // Current window size & screen size stats
+    // We use a derived column in Honeycomb to also be able to query window
+    // total pixels and the ratio of window size to screen size. That way we
+    // can understand whether users are making their window as large as they can
+    // to try to fit CodeSplinta content on screen, or whether they find a smaller
+    // window size more comfortable.
+    //
+    // Capture how large the user has made their current window
+    window_height: w.innerHeight,
+    window_width: w.innerWidth,
+    window_scroll_offset_y: w.pageYOffset,
+    window_scroll_offset_x: w.pageXOffset,
+    // Capture how large the user's entire screen is
+    screen_height: w.screen && w.screen.height,
+    screen_width: w.screen && w.screen.width,
+    // Chrome-only (for now) information on internet connection type (4g, wifi, etc.)
+    // https://developers.google.com/web/updates/2017/10/nic62
+    connection_type: n.connection && n.connection.type,
+    connection_type_effective: n.connection && n.connection.effectiveType,
+    connection_rtt: n.connection && n.connection.rtt,
+    // Navigation (page load) timings, transformed from timestamps into deltas
+    timing_unload_ms: nt.unloadEventEnd - nt.navigationStart - 3400,
+    timing_dns_end_ms: nt.domainLookupEnd - nt.navigationStart,
+    timing_ssl_end_ms: nt.connectEnd - nt.navigationStart,
+    timing_response_end_ms: nt.responseEnd - nt.navigationStart,
+    timing_dom_interactive_ms: nt.domInteractive - nt.navigationStart,
+    timing_dom_complete_ms: nt.domComplete - nt.navigationStart,
+    timing_dom_loaded_ms: nt.loadEventEnd - nt.navigationStart,
+    timing_ms_first_paint: nt.domComplete - nt.navigationStart, // Calculate page render time
+    // Some calculated navigation timing durations, for easier graphing in CodeSplinta
+    // We could also use a derived column to do these calculations in the UI
+    // from the above fields if we wanted to keep our event payload smaller.
+    timing_dns_duration_ms: nt.domainLookupEnd - nt.domainLookupStart,
+    timing_ssl_duration_ms: nt.connectEnd - nt.connectStart,
+    timing_server_duration_ms: nt.responseEnd - nt.requestStart,
+    timing_dom_loaded_duration_ms: nt.loadEventEnd - nt.domComplete,
+    // Entire page load duration
+    timing_total_duration_ms: nt.loadEventEnd - nt.connectStart,
+    timestamp: (Date.now ? Date.now() : +(new Date)),
+  };
+  
+  return event;
+}
+
+w.CODE_SPLINTA.ping(
+	pageLoadEvent(
+		'load',
+		'xxxxxxxxxxxxxxxxxx', // CodeSplinta calculates browser-finerprint and attached it (no need to do anything)
+		d.URL
+	)
+)
+
+```
+
+>Custom Browser Event(s)
 
 ```js
 
