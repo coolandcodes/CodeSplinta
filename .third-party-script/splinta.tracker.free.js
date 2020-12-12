@@ -3435,13 +3435,17 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
 
 
-;(function (w, d, n) {
+;(function (w, d, n, c) {
 	
-// https://reporting.codesplinta.co/events?for=onload&type=ui-event
-// https://reporting.codesplinta.co/events?for=onunload&type=ui-event
+// https://reporting.codesplinta.co/events?for=load&type=ui-event
+// https://reporting.codesplinta.co/events?for=unload&type=ui-event
 
 var _hiddenDocSupported = ('hidden' in d || 'mozHidden' in d || 'msHidden' in d || 'webkitHidden' in d);
 	
+var getPageEventId = function () {
+   return (Math.floor(Math.random() * 10000000000)).toString(16).substring(0, 8);
+}
+
 var getPageState = function () {
   var hidden = _hiddenDocSupported && (d.hidden || d.mozHidden || d.msHidden || d.webkitHidden);
   if (hidden || d.visibilityState === 'hidden') {
@@ -3457,28 +3461,32 @@ var perf = w.performance;
 var jsHeapUsed = perf.memory && perf.memory.usedJSHeapSize;
 var jsHeapTotal = perf.memory && perf.memory.totalJSHeapSize;
 
-const pageLoadEvent = function(pageEventName, pageEventGuid) {
+const pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
   var nt = perf.timing;
 	
   var event = {
     type: pageEventName,
-    page_load_id: pageEventGuid,
+    page_event_id: getPageEventId(),
+    browser_fp: browserFingerPrint,
     page_state: getPageState(),
+    page_last_nav: pageLastNav,
     // Network connectivity
     online: n.onLine,
     // User agent Data. We can parse the user agent into device, os name, os version,
-    // browser name, and browser version fields server-side if we want to later.
-    browsengine_data: { },
+    // browser name, browser engine, and browser version fields if we want to later.
+    browser_ua_data: { },
     // Current window size & screen size stats
     // We use a derived column in Honeycomb to also be able to query window
     // total pixels and the ratio of window size to screen size. That way we
     // can understand whether users are making their window as large as they can
-    // to try to fit Honeycomb content on screen, or whether they find a smaller
+    // to try to fit CodeSplinta content on screen, or whether they find a smaller
     // window size more comfortable.
     //
     // Capture how large the user has made their current window
     window_height: w.innerHeight,
     window_width: w.innerWidth,
+    window_scroll_offset_y: w.pageYOffset,
+    window_scroll_offset_x: w.pageXOffset,
     // Capture how large the user's entire screen is
     screen_height: w.screen && w.screen.height,
     screen_width: w.screen && w.screen.width,
@@ -3488,7 +3496,7 @@ const pageLoadEvent = function(pageEventName, pageEventGuid) {
     connection_type_effective: n.connection && n.connection.effectiveType,
     connection_rtt: n.connection && n.connection.rtt,
     // Navigation (page load) timings, transformed from timestamps into deltas
-    timing_unload_ms: nt.unloadEventEnd - nt.navigationStart,
+    timing_unload_ms: nt.unloadEventEnd - nt.navigationStart - 3400,
     timing_dns_end_ms: nt.domainLookupEnd - nt.navigationStart,
     timing_ssl_end_ms: nt.connectEnd - nt.navigationStart,
     timing_response_end_ms: nt.responseEnd - nt.navigationStart,
@@ -3496,7 +3504,7 @@ const pageLoadEvent = function(pageEventName, pageEventGuid) {
     timing_dom_complete_ms: nt.domComplete - nt.navigationStart,
     timing_dom_loaded_ms: nt.loadEventEnd - nt.navigationStart,
     timing_ms_first_paint: nt.domComplete - nt.navigationStart, // Calculate page render time
-    // Some calculated navigation timing durations, for easier graphing in Honeycomb
+    // Some calculated navigation timing durations, for easier graphing in CodeSplinta
     // We could also use a derived column to do these calculations in the UI
     // from the above fields if we wanted to keep our event payload smaller.
     timing_dns_duration_ms: nt.domainLookupEnd - nt.domainLookupStart,
@@ -3508,11 +3516,11 @@ const pageLoadEvent = function(pageEventName, pageEventGuid) {
     timestamp: (Date.now ? Date.now() : +(new Date)),
   };
   // First paint data via PerformancePaintTiming (Chrome only for now)
-  var hasPerfTimeline = !!w.performance.getEntriesByType;
+  var hasPerfTimeline = !!perf.getEntriesByType;
 	
   if (hasPerfTimeline) {
     // Chrome Only (non-standard) - @TODO: polyfill for other browsers	    
-    var paints = w.performance.getEntriesByType("paint") || [];
+    var paints = perf.getEntriesByType("paint") || [];
     // Loop through array of two PerformancePaintTimings and send both
     paints.forEach(function(paint) {
       if (paint.name === "first-paint") {
@@ -3536,8 +3544,8 @@ const pageLoadEvent = function(pageEventName, pageEventGuid) {
   // Find out if the user was redirected on their way to landing on this page,
   // so we can have visibility into whether redirects are slowing down the experience
   event.redirect_count =
-    w.performance.navigation &&
-    w.performance.navigation.redirectCount;
+    perf.navigation &&
+    perf.navigation.redirectCount;
   
   // ResourceTiming stats
   // We don't care about getting stats for every single static asset, but we do
@@ -3546,7 +3554,7 @@ const pageLoadEvent = function(pageEventName, pageEventGuid) {
   // our users massive js files that could slow down their experience? should we
   // be code-splitting for more manageable file sizes?).
   if (hasPerfTimeline) {
-    var resources = w.performance.getEntriesByType(
+    var resources = perf.getEntriesByType(
       "resource",
     );
 	  
@@ -3618,7 +3626,8 @@ w.addEventListener("load", function () {
 						).join(''), 
 						31
 					)
-				)
+				),
+				d.URL
 			)
 		);
        });
@@ -3626,33 +3635,43 @@ w.addEventListener("load", function () {
 });	
 	
 // Capture a _count_ of errors that occurred while interacting with this page.
-// We use an error monitoring service (Sentry) as the source of truth for
+// We use an error monitoring service (TrackJS) as the source of truth for
 // information about errors, but this lets us cross-reference and ask questions
-// like, "are we ever failing to report errors to Sentry?" and "was this user's
+// like, "are we ever failing to report errors to TrackJS?" and "was this user's
 // experience on this page potentially impacted by JS errors?"
-var oldOnError = w.onerror;
+var $oldOnError = w.onerror;
 var errorCount = 0;
-w.onerror = function() {
+w.onerror = function () {
   var args = [].slice.call(arguments);
+	
   // call any previously defined onError handlers
-  if (oldOnError) {
-    oldOnError.apply(this, args);
+  if ( typeof $oldOnError === 'function' ) {
+     $oldOnError.apply(this, args);
   }
 	
   errorCount++;
 };
 	
 
-// Returns a wide event of perf/client stats to send to Honeycomb
-var pageActivityEvent = function(pageEventName, pageLoadId) {
+// Returns a wide event of perf/client stats to send to CodeSplinta
+var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav, activityName) {
   // Capture how long the user kept this window or tab open for
   var openDuration =
     ((Date.now ? Date.now() : +(new Date)) - perf.timing.connectStart) / 1000;
 	
   var event = {
     type: pageEventName,
-    page_load_id: pageLoadId,
+    page_event_id: getPageEventId(),
+    activity_name: activityName,
+    browser_fp: browserFingerPrint,
     page_state: getPageState(),
+    page_prior_nav: d.URL,
+    page_last_nav: pageLastNav,
+    // Chrome-only (for now) information on internet connection type (4g, wifi, etc.)
+    // https://developers.google.com/web/updates/2017/10/nic62
+    connection_type: n.connection && n.connection.type,
+    connection_type_effective: n.connection && n.connection.effectiveType,
+    connection_rtt: n.connection && n.connection.rtt,
     online: n.onLine,
     timestamp: (Date.now ? Date.now() : +(new Date))
   };
@@ -3675,30 +3694,97 @@ var pageActivityEvent = function(pageEventName, pageLoadId) {
 	
   return event;
 };
+	
+var delay = function (timeout) {
+    var now, until = (
+	 (typeof timeout === 'number') && !Number.isNaN(timeout)
+	) ? +(new Date) + timeout
+	  : 0;
 
-	d.addEventListener("visibilitychange", function () {
-	   Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
-		return w.CODE_SPLINTA.ping(
-			pageActivityEvent(
-				'activity',
-				String(
-					Fingerprint2.x64hash128(
-						components.map(
-							function(component) { return component.value; }
-						).join(''), 
-						31
-					)
+     // lock browser until delay is met
+     if (until) {
+	do {
+	     now = new Date();
+	} while (now.getTime() < until);
+     }
+
+     return true;
+}
+
+w.onscroll = d.onmousewheel = function (e) {
+
+}
+	
+w.onresize = function (e) {
+	
+}
+
+d.addEventListener("visibilitychange", function (e) {
+   var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
+				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
+					|| (e.currentTarget && e.currentTarget.document.activeElement) || d.activeElement); // Cross-Browser
+	
+   var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
+	
+   Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
+	return w.CODE_SPLINTA.ping(
+		pageActivityEvent(
+			'activity',
+			String(
+				Fingerprint2.x64hash128(
+					components.map(
+						function(component) { return component.value; }
+					).join(''), 
+					31
 				)
-  			)
-		);
-	   });
-	});
+			),
+			lastNav,
+			'doc_visibility'
+		)
+	);
+   });
+});
+	
 
+var $onUnload = w.onunload;
+var $onBeforeUnload = w.onbeforeunload;
+var lastNav;
+
+w.onbeforeunload = function (e) {
+  var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
+				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
+					|| (e.currentTarget && e.currentTarget.document.activeElement)); // Cross-Browser
 	
-w.addEventListener("unload", function () {
-    var done = false;
+  var isLogoutNav = lastActivatedNode.href === w.CODE_SPLINTA.href.logout;
+  var isHomeNav = lastActivatedNode.href === w.CODE_SPLINTA.href.home;
+  var isLoginNav = lastActivatedNode.href === w.CODE_SPLINTA.href.login;
+  var isDownload = ('download' in lastActivatedNode);	
 	
-    Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
+  lastNav = lastActivatedNode.href;
+	
+  if( typeof $onBeforeUnload === 'function' ){
+      $onBeforeUnload(e);
+  }
+
+  c.log('CS:> before; unloading page');
+
+  if( !(isLogoutNav || isHomeNav || isDownload) ){ 
+	  e.returnValue = 'Are you sure?'; // IE 8-/Firefox 36-/Chrome 34-
+  }
+
+  return (isLoginNav || isHomeNav || isDownload) ? undefined : true; 
+}
+	
+w.onunload = function (e) {
+   var _delayUnloadUntilFinish = 3600; // 3.6 secs
+
+  if( typeof $onUnload === 'function' ){
+      $onUnload(e);
+  }
+
+  c.log('CS:> unloading page');
+
+  Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
    	w.CODE_SPLINTA.send(
 		pageActivityEvent(
 			'unload',
@@ -3709,20 +3795,31 @@ w.addEventListener("unload", function () {
 					).join(''), 
 					31
 				)
-			)
+			),
+			lastNav
   		)
-   	).then(function() { done = true; });
-    });
-	
-    // Force the browser to wait for the async task above finsh up
-    while(!done){	
-    	var blank = new Image();
-    	blank.src = 'about:blank';
-    }
+   	);
+  });
+
+  // Force the browser to wait for the async task above finsh up
+  delay(
+	_delayUnloadUntilFinish
+  );
 });
+	
+// Operas' proprietary property to force the browser to always retrieve the page from the server or the cache
+// intelligently (Default : 'automatic' | 'fast' )
+try{
+   if(w.history){
+	if( typeof ( w.opera ) !== 'undefined' ){
+		w.opera.setOverrideHistoryNavigationMode( 'compatible' );
+		w.history.navigationMode = 'compatible';
+	}
+   }
+}catch(ex){ }
 
 	
-}(this, this.document, this.navigator));
+}(this, this.document, this.navigator, this.console));
 
 /**
 
