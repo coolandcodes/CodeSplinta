@@ -4,7 +4,7 @@
  *
  * @author: Ifeora Okechukwu
  * @vendor: CoolCodes
- * @version: 0.1.4
+ * @version: 0.1.5
  */
 
  /**
@@ -3435,7 +3435,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
 
 
-;(function (w, d, n, c) {
+;(function (w, d, n, c, l) {
 	
 // https://reporting.codesplinta.co/events?for=load&type=ui-event
 // https://reporting.codesplinta.co/events?for=unload&type=ui-event
@@ -3600,7 +3600,9 @@ var browserFingerPrintOptions = {
         availableScreenResolution: true,
         enumerateDevices: true,
         pixelRatio: true,
-        doNotTrack: true
+        doNotTrack: true,
+	touchSupport: true,
+	canvas: true
     },
     preprocessor: (key, value) => {
        if (key === 'userAgent') {
@@ -3614,7 +3616,11 @@ var browserFingerPrintOptions = {
 w.addEventListener("load", function () {
   // Wait a tick so this all runs after any onload handlers
   w.setTimeout(function() {
-       Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
+	if(l.protocol.indexOf('https') !== 0) { 
+   		return false;
+   	}
+	  
+        Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
        		// Sends the event to our servers for forwarding on to https://reporting.codesplinta.co
     		w.CODE_SPLINTA.ping(
 			pageLoadEvent(
@@ -3630,7 +3636,7 @@ w.addEventListener("load", function () {
 				d.URL
 			)
 		);
-       });
+        });
   }, 500);
 });	
 	
@@ -3725,6 +3731,10 @@ d.addEventListener("visibilitychange", function (e) {
 					|| (e.currentTarget && e.currentTarget.document.activeElement) || d.activeElement); // Cross-Browser
 	
    var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
+   
+   if(l.protocol.indexOf('https') !== 0) { 
+   	return false;
+   }
 	
    Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
 	return w.CODE_SPLINTA.ping(
@@ -3783,6 +3793,10 @@ w.onunload = function (e) {
   }
 
   c.log('CS:> unloading page');
+	
+  if(l.protocol.indexOf('https') !== 0) { 
+   	return false;
+  }
 
   Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
    	w.CODE_SPLINTA.send(
@@ -3819,7 +3833,7 @@ try{
 }catch(ex){ }
 
 	
-}(this, this.document, this.navigator, this.console));
+}(this, this.document, this.navigator, this.console, this.location));
 
 /**
 
@@ -4122,66 +4136,6 @@ return detectPrivateMode(function(isPrivate) {
 
 })));
 
-/**
-  * Detect Browser Fingerprint
-  * 
-  * See: 
-  */
-
- ;(function(w, d){
-
-  var cancelId = null;
-  var cancelFunction = null;
-
-  w.localStorage.setItem("is_fingerprint_set", "0");
-
-  // setup browser finger callback function
-  if(w.location.protocol.indexOf('https') + 1) {
-    if (w.requestIdleCallback) {
-      cancelId = requestIdleCallback(calculateBrowserFingerprint)
-      cancelFunction = cancelIdleCallback
-    } else {
-      cancelId = setTimeout(calculateBrowserFingerprint, 500)
-      cancelFunction = clearTimeout
-    }
-  }
-
-  function calculateBrowserFingerprint(){
-            
-      if(Boolean(parseInt(w.localStorage.getItem("is_fingerprint_set")))){
-        return;
-      }
-
-      // run login to see if cookie exists, if it does, return/exit this setTimeout function
-      w.Fingerprint2.get({
-        excludes: { touchSupport: true, canvas: true },
-        
-        preprocessor:function(key, value){
-          var result = value;
-          if(key === 'user_agent' 
-            || key === 'naviagtor_platform'){
-            ;
-          }
-
-          return result;
-        }},
-          
-        function(components){
-          var murmur_hash = w.Fingerprint2.x64hash128(components.map(function (pair) { return pair.value }).join(), 31)
-          
-          console.log("[BROWSER FINGERPRINT :]", components);
-          
-          w.CODE_SPLINTA['browser-hash'] = murmur_hash;
-
-          w.localStorage.setItem("is_fingerprint_set", "1");
-      });
-
-      console.log('[CODESPLINTA] browser fingerprint generated');
-  };
-
-  calculateBrowserFingerprint.toString = function(){ return 'function (){ [native code] }' }
-
-}(this, this.document))
 
 /**
  Redirect [ Console ] output to a remote server when the 
