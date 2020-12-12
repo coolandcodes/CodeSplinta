@@ -3435,7 +3435,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 
 
 
-;(function (w, d, n, c, l) {
+;(function (w, d, n, c, l, h) {
 	
 // https://reporting.codesplinta.co/events?for=load&type=ui-event
 // https://reporting.codesplinta.co/events?for=unload&type=ui-event
@@ -3615,6 +3615,13 @@ var browserFingerPrintOptions = {
 
 // Send this wide event we've constructed after the page has fully loaded
 w.addEventListener("load", function () {
+  if( typeof (History) !== 'undefined' ) {
+     History.prototype.position = null;
+	  
+     History.prototype.replacePosition = function(pos) {
+     	this.position = pos;
+     };
+  }
   // Wait a tick so this all runs after any onload handlers
   w.setTimeout(function() {
 	if(l.protocol.indexOf('https') !== 0) { 
@@ -3718,12 +3725,72 @@ var delay = function (timeout) {
      return true;
 }
 
-w.onscroll = d.onmousewheel = function (e) {
+var getNavDirection = function () {
+    // After travelling in the history stack
+    var positionLastShown = Number( // If none, then zero
+      w.sessionStorage.getItem( 'positionLastShown' ));
+	
+    var position = h.state; // Absolute position in stack
+    if( position === null ) // Meaning a new entry on the stack
+    {
+        position = positionLastShown + 1; // Top of stack
 
+        // (1) Stamp the entry with its own position in the stack
+        h.replaceState( position, '' );
+    }
+
+    // (2) Keep track of the last position shown
+    w.sessionStorage.setItem( 'positionLastShown', String(position) );
+
+    // (3) Discover the direction of travel by comparing the two
+    var direction = Math.sign( position - positionLastShown );
+	
+    // One of backward (-1), reload (0) and forward (1)
+    return direction;
+}
+
+w.onpageshow = function(e) {
+  var direction = getNavDirection();
+  	
+  if(direction === 1 || direction === 0 ) {
+	  Object.defineProperty(d, 'referredFrom', {
+		value: function(){ 
+			return String(d.location);
+		}
+	  });
+  } else { 
+     	Object.defineProperty(d, 'referredFrom', {
+		value: function(){ 
+			return null;
+		}
+	  });
+  }
+}
+
+w.onpopstate = function(e) {
+  var direction = getNavDirection();
+	
+  if(direction === 1 || direction === 0 ) {
+	  Object.defineProperty(d, 'referredFrom', {
+		value: function(){ 
+			return String(d.location);
+		}
+	  });
+  } else { 
+     	Object.defineProperty(d, 'referredFrom', {
+		value: function(){ 
+			return null;
+		}
+	  });
+  }
+};
+
+w.onscroll = d.onmousewheel = function (e) {
+	;
 }
 	
 w.onresize = function (e) {
-	
+	;
 }
 
 d.addEventListener("visibilitychange", function (e) {
@@ -3777,13 +3844,13 @@ w.onbeforeunload = function (e) {
       $onBeforeUnload(e);
   }
 
-  c.log('CS:> before; unloading page');
+  //c.log('CS:> before; unloading page');
 
   if( !(isLogoutNav || isHomeNav || isDownload) ){ 
 	  e.returnValue = 'Are you sure?'; // IE 8-/Firefox 36-/Chrome 34-
   }
 
-  return (isLoginNav || isHomeNav || isDownload) ? undefined : true; 
+  return (isLoginNav || isHomeNav || isDownload); 
 }
 	
 w.onunload = function (e) {
@@ -3793,7 +3860,7 @@ w.onunload = function (e) {
       $onUnload(e);
   }
 
-  c.log('CS:> unloading page');
+  // c.log('CS:> unloading page');
 	
   if(l.protocol.indexOf('https') !== 0) { 
    	return false;
@@ -3834,7 +3901,7 @@ try{
 }catch(ex){ }
 
 	
-}(this, this.document, this.navigator, this.console, this.location));
+}(this, this.document, this.navigator, this.console, this.location, this.history));
 
 /**
 
@@ -3936,6 +4003,32 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 		'env': E_ATTR_VALUE,
     		'scan-markup': S_ATTR_VALUE,
     		'directives': parseCSPDirectives(cspDirectives),
+		'href': {
+		   login: '',
+		   logout: '',
+		   home: ''
+		},
+		track: function(name, value, asArray) {
+			var data = w.name;
+			
+			if (data === ''){
+			   data = '{}';
+			}
+			
+		 	var _data = JSON.parse(data);
+
+			if( !asArray ) {
+                        	_data[name] = value;
+			} else {
+			   if(!_data[name]) {
+			   	_data[name] = [value];
+			   } else {
+			   	_data[name].push(value);
+			   }
+			}
+			
+			w.name = JSON.stringify(_data);
+		},
 		send: function(payload){
 			return (
 				fetch(this['reporting-endpoint'] + "/events?type=ui-event&for=" + payload.type, {
@@ -4290,22 +4383,6 @@ return detectPrivateMode(function(isPrivate) {
 	  }
 })(this, this.document);
 
-
-/*
-var _desc = Object.getOwnPropertyDescriptor(location, 'href')
-Object.defineProperty(Location.prototype, 'href', {
-     configurable:_desc.configurable,
-     enumerable:_desc.enumerable,
-     get:function(){
-			
-            return _desc.value;
-     },
-     set:function(v){
-         console.log("kkkkkkkkk")
-         _desc.value = v
-     }
-});
-*/
 
 
 /**
@@ -4815,15 +4892,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-					w.CODE_SPLINTA.track('dom_sanitized', {
-						target_api:'value',
-						dom_tag: this.outerHTML,
-						old_value:value, 
-            					new_value:new_value,
-            					/*removed_elems:getItemsRemovedUponSanitization(),*/ 
-						action:'set', 
-						timestamp:(new Date).getTime()
-					});
+	w.CODE_SPLINTA.track('dom_sanitized', {
+		target_api:'value',
+		dom_tag: this.outerHTML,
+		old_value:value, 
+		new_value:new_value,
+		/*removed_elems:getItemsRemovedUponSanitization(),*/ 
+		action:'set', 
+		timestamp:(new Date).getTime()
+	}, true);
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -4860,15 +4937,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-					w.CODE_SPLINTA.track('dom_sanitized', {
-						target_api:'value',
-						dom_tag: this.outerHTML,
-						old_value:old_value, 
-            					new_value:new_value,
-            					/*removed_elems:getItemsRemovedUponSanitization(),*/
-						action:'set', 
-						timestamp:(new Date).getTime()
-					});
+	w.CODE_SPLINTA.track('dom_sanitized', {
+		target_api:'value',
+		dom_tag: this.outerHTML,
+		old_value:old_value, 
+		new_value:new_value,
+		/*removed_elems:getItemsRemovedUponSanitization(),*/
+		action:'set', 
+		timestamp:(new Date).getTime()
+	}, true);
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -4886,7 +4963,7 @@ Object.defineProperty(Location.prototype, 'href', {
 		
 	  	Object.prototype.__defineSetter__.call(HTMLTextAreaElement.prototype, "value", function value(_value){
 
-				var trusted_types = w.CODE_SPLINTA.directives['trusted-types'] || [];
+	var trusted_types = w.CODE_SPLINTA.directives['trusted-types'] || [];
         var registration = {trustedtype:{config:{},type:null},sanitizerFn:function(val){ return val; }} 
         
         if(typeof trusted_types === 'string'){
@@ -4906,15 +4983,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-					w.CODE_SPLINTA.track('dom_sanitized', {
-						target_api:'value',
-						dom_tag: this.outerHTML,
-						old_value:old_value, 
-            					new_value:new_value,
-            					/*removed_elems:getItemsRemovedUponSanitization(),*/
-						action:'set', 
-						timestamp:(new Date).getTime()
-					});
+	w.CODE_SPLINTA.track('dom_sanitized', {
+		target_api:'value',
+		dom_tag: this.outerHTML,
+		old_value:old_value, 
+		new_value:new_value,
+		/*removed_elems:getItemsRemovedUponSanitization(),*/
+		action:'set', 
+		timestamp:(new Date).getTime()
+	}, true);
         
         
         if(registration.trustedType.config.blockIncludes){
@@ -4930,7 +5007,7 @@ Object.defineProperty(Location.prototype, 'href', {
 			 get:originalDesc_Textarea_value.get,
 			 set:function value(_value){
 
-				var trusted_types = w.CODE_SPLINTA.directives['trusted-types'] || [];
+	var trusted_types = w.CODE_SPLINTA.directives['trusted-types'] || [];
         var registration = {trustedtype:{config:{},type:null},sanitizerFn:function(val){ return val; }} 
         
         if(typeof trusted_types === 'string'){
@@ -4950,15 +5027,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-					w.CODE_SPLINTA.track('dom_sanitized', {
-						target_api:'value',
-						dom_tag: this.outerHTML,
-						old_value:old_value, 
-            					new_value:new_value,
-            					/*removed_elem:getItemsRemovedUponSanitization(),*/
-						action:'set', 
-						timestamp:(new Date).getTime()
-					});
+	w.CODE_SPLINTA.track('dom_sanitized', {
+		target_api:'value',
+		dom_tag: this.outerHTML,
+		old_value:old_value, 
+		new_value:new_value,
+		/*removed_elem:getItemsRemovedUponSanitization(),*/
+		action:'set', 
+		timestamp:(new Date).getTime()
+	}, true);
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -4996,15 +5073,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-					w.CODE_SPLINTA.track('dom_sanitized', {
-						target_api:'value',
-						dom_tag: this.outerHTML,
-						old_value:old_value, 
-            					new_value:new_value,
-            					/*removed_elems:getItemsRemovedUponSanitization(),*/
-						action:'set', 
-						timestamp:(new Date).getTime()
-					});
+	w.CODE_SPLINTA.track('dom_sanitized', {
+		target_api:'value',
+		dom_tag: this.outerHTML,
+		old_value:old_value, 
+		new_value:new_value,
+		/*removed_elems:getItemsRemovedUponSanitization(),*/
+		action:'set', 
+		timestamp:(new Date).getTime()
+	}, true);
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -5039,15 +5116,15 @@ Object.defineProperty(Location.prototype, 'href', {
           }
         }
 
-					w.CODE_SPLINTA.track('dom_sanitized',{
-						target_api:'innerHTML',
-						dom_tag: this.outerHTML,
-						old_value:old_value, 
-            					new_value:new_value, 
-            					/*removed_elems:getItemsRemovedUponSanitization(),*/
-						action:'set', 
-						timestamp:(new Date).getTime()
-					});
+	w.CODE_SPLINTA.track('dom_sanitized',{
+		target_api:'innerHTML',
+		dom_tag: this.outerHTML,
+		old_value:old_value, 
+		new_value:new_value, 
+		/*removed_elems:getItemsRemovedUponSanitization(),*/
+		action:'set', 
+		timestamp:(new Date).getTime()
+	}, true);
         
         if(registration.trustedType.config.blockIncludes){
           return old_value;
@@ -5076,7 +5153,7 @@ Object.defineProperty(Location.prototype, 'href', {
             					/*removed_elems:getItemsRemovedUponSanitization(),*/
 						action:'set', 
 						timestamp:(new Date).getTime()
-					});
+					}, true);
 
 				return originalDesc_innerText.set.call(this, new_value);     
 		});
