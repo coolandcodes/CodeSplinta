@@ -220,7 +220,7 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
 w.CODE_SPLINTA.ping(
 	pageLoadEvent(
 		'load',
-		'xxxxxxxxxxxxxxxxxx', // CodeSplinta calculates browser-finerprint and attached it (no need to do anything)
+		'xxxxxxxxxxxxxxxxxx', // CodeSplinta calculates browser-finerprint and attaches it (no need to do anything extra)
 		d.URL
 	)
 )
