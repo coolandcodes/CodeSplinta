@@ -12,10 +12,10 @@
   */
 
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory() :
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(global, (global || {}).document) :
 	typeof define === 'function' && define.amd ? define(factory) :
-	(factory());
-}(this, (function () { 'use strict';
+	(factory(global, global.document));
+}(this, (function (w, d) { 'use strict';
 		      
 /**
  * @this {Document.domain}
@@ -23,10 +23,10 @@
  */
 
 // IE 8, very well supported :)
-Object.defineProperty(document, 'domainMutateCount', {value: 1, writable:false});
-Object.defineProperty(document, 'domain', {configurable:false,get:undefined,set:function(domainText){
+/*Object.defineProperty(d, 'domainMutateCount', {value: 1, writable:false});
+Object.defineProperty(d, 'domain', {configurable:false,get:undefined,set:function(domainText){
 	if(this.domainMutateCount === 0) this.domain = domainText;
-}});
+}});*/
 
 /**
  * @this {Promise}
@@ -3497,7 +3497,7 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
     connection_type_effective: n.connection && n.connection.effectiveType,
     connection_rtt: n.connection && n.connection.rtt,
     // Navigation (page load) timings, transformed from timestamps into deltas
-    timing_unload_ms: nt.unloadEventEnd - nt.navigationStart - 3400,
+    timing_unload_ms: nt.unloadEventEnd - nt.navigationStart - 3600,
     timing_dns_end_ms: nt.domainLookupEnd - nt.navigationStart,
     timing_ssl_end_ms: nt.connectEnd - nt.navigationStart,
     timing_response_end_ms: nt.responseEnd - nt.navigationStart,
@@ -3615,13 +3615,6 @@ var browserFingerPrintOptions = {
 
 // Send this wide event we've constructed after the page has fully loaded
 w.addEventListener("load", function () {
-  if( typeof (History) !== 'undefined' ) {
-     History.prototype.position = null;
-	  
-     History.prototype.replacePosition = function(pos) {
-     	this.position = pos;
-     };
-  }
   // Wait a tick so this all runs after any onload handlers
   w.setTimeout(function() {
 	if(l.protocol.indexOf('https') !== 0) { 
@@ -3629,20 +3622,21 @@ w.addEventListener("load", function () {
    	}
 	  
         Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
-       		// Sends the event to our servers for forwarding on to https://reporting.codesplinta.co
-    		w.CODE_SPLINTA.ping(
-			pageLoadEvent(
-				'load', 
-				String(
-					Fingerprint2.x64hash128(
-						components.map(
-							function(component) { return component.value; }
-						).join(''), 
-						31
-					)
-				),
-				d.URL
+ 		w.CODE_SPLINTA.browser_fp = String(
+			Fingerprint2.x64hash128(
+				components.map(
+					function(component) { return component.value; }
+				).join(''), 
+				31
 			)
+		);
+       		// Sends the event to our servers for forwarding on to https://reporting.codesplinta.co
+    		return w.CODE_SPLINTA.ping(
+				pageLoadEvent(
+					'load', 
+					w.CODE_SPLINTA.browser_fp,
+					d.URL
+				)
 		);
         });
   }, 500);
@@ -3728,23 +3722,26 @@ var delay = function (timeout) {
 var getNavDirection = function () {
     // After travelling in the history stack
     var positionLastShown = Number( // If none, then zero
-      w.sessionStorage.getItem( 'positionLastShown' ));
+      w.sessionStorage.getItem( 'cs_positionLastShown' ));
 	
     var position = h.state; // Absolute position in stack
-    if( position === null ) // Meaning a new entry on the stack
+	
+    if( position === null || position.state === undefined ) // Meaning a new entry on the stack
     {
-        position = positionLastShown + 1; // Top of stack
+	if ( position !== null ) {
+		position.state = positionLastShown + 1;
+	} else {
+        	position = positionLastShown + 1; // Top of stack
+	}
 
         // (1) Stamp the entry with its own position in the stack
         h.replaceState( position, '' );
-    }
-
+    } 
     // (2) Keep track of the last position shown
-    w.sessionStorage.setItem( 'positionLastShown', String(position) );
+    w.sessionStorage.setItem( 'cs_positionLastShown' , String(typeof position === 'number' ? position : position.state) );
 
     // (3) Discover the direction of travel by comparing the two
-    var direction = Math.sign( position - positionLastShown );
-	
+    var direction = Math.sign( typeof position === 'number' ? position - positionLastShown : position.state - positionLastShown );
     // One of backward (-1), reload (0) and forward (1)
     return direction;
 }
@@ -3754,17 +3751,24 @@ w.onpageshow = function(e) {
   	
   if(direction === 1 || direction === 0 ) {
 	  Object.defineProperty(d, 'referredFrom', {
+		writable: false,
 		value: function(){ 
 			return String(d.location);
 		}
 	  });
   } else { 
      	Object.defineProperty(d, 'referredFrom', {
+		writable: false,
 		value: function(){ 
 			return null;
 		}
 	  });
   }
+}
+	
+w.onhashchange = function (e){
+
+   w.onbeforeunload({ srcDocument:d, currentTarget:w, type: "beforeunload", trigger: e.type, context: {oldURL: e.oldURL, newURL: e.newURL } });
 }
 
 w.onpopstate = function(e) {
@@ -3772,55 +3776,82 @@ w.onpopstate = function(e) {
 	
   if(direction === 1 || direction === 0 ) {
 	  Object.defineProperty(d, 'referredFrom', {
+		writable: false,
 		value: function(){ 
 			return String(d.location);
 		}
 	  });
   } else { 
      	Object.defineProperty(d, 'referredFrom', {
+		writable: false,
 		value: function(){ 
 			return null;
 		}
 	  });
   }
+  
+  w.onbeforeunload({ srcDocument:d, currentTarget:w, type: "beforeunload", trigger: e.type, context: {state: e.state} }); 
 };
 
 w.onscroll = d.onmousewheel = function (e) {
 	;
 }
 	
+d.onclick = function (e) {
+	var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
+				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
+					|| (e.currentTarget && e.currentTarget.document.activeElement) 
+				 		|| d.activeElement || {}); // Cross-Browser
+	
+   	var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
+	
+	return w.CODE_SPLINTA.track(
+			'ui-event',
+			pageActivityEvent(
+				'activity', 
+				w.CODE_SPLINTA.browser_fp,
+				lastNav,
+				'doc_click'
+			)
+	);
+}
+	
 w.onresize = function (e) {
-	;
+	var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
+				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
+					|| (e.currentTarget && e.currentTarget.document.activeElement) 
+				 		|| d.activeElement); // Cross-Browser
+	
+   	var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
+	
+	return w.CODE_SPLINTA.track(
+			'ui-event',
+			pageActivityEvent(
+				'activity', 
+				w.CODE_SPLINTA.browser_fp,
+				lastNav,
+				'win_resize'
+			)
+	);
 }
 
 d.addEventListener("visibilitychange", function (e) {
    var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
 				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
-					|| (e.currentTarget && e.currentTarget.document.activeElement) || d.activeElement); // Cross-Browser
+					|| (e.currentTarget && e.currentTarget.document.activeElement) 
+			    			|| d.activeElement || {}); // Cross-Browser
 	
    var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
-   
-   if(l.protocol.indexOf('https') !== 0) { 
-   	return false;
-   }
-	
-   Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
-	return w.CODE_SPLINTA.ping(
-		pageActivityEvent(
-			'activity',
-			String(
-				Fingerprint2.x64hash128(
-					components.map(
-						function(component) { return component.value; }
-					).join(''), 
-					31
-				)
-			),
-			lastNav,
-			'doc_visibility'
-		)
-	);
-   });
+  
+   return w.CODE_SPLINTA.track(
+	'ui-event',
+	pageActivityEvent(
+		'activity',
+		w.CODE_SPLINTA.browser_fp,
+		lastNav,
+		'doc_visibility'
+	)
+  );
 });
 	
 
@@ -3831,16 +3862,18 @@ var lastNav;
 w.onbeforeunload = function (e) {
   var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
 				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
-					|| (e.currentTarget && e.currentTarget.document.activeElement)); // Cross-Browser
+					|| (e.currentTarget && e.currentTarget.document.activeElement)
+			  			|| d.activeElement || {}); // Cross-Browser
 	
   var isLogoutNav = lastActivatedNode.href === w.CODE_SPLINTA.href.logout;
   var isHomeNav = lastActivatedNode.href === w.CODE_SPLINTA.href.home;
   var isLoginNav = lastActivatedNode.href === w.CODE_SPLINTA.href.login;
   var isDownload = ('download' in lastActivatedNode);	
 	
-  lastNav = lastActivatedNode.href;
+  lastNav = e.context && e.context.newURL ? e.context.newURL : lastActivatedNode.href;
+
 	
-  if( typeof $onBeforeUnload === 'function' ){
+  if( typeof $onBeforeUnload === 'function' && typeof e.trigger === 'undefined' ){
       $onBeforeUnload(e);
   }
 
@@ -3850,38 +3883,25 @@ w.onbeforeunload = function (e) {
 	  e.returnValue = 'Are you sure?'; // IE 8-/Firefox 36-/Chrome 34-
   }
 
-  return (isLoginNav || isHomeNav || isDownload); 
+  return (isLoginNav || isHomeNav || isDownload) ? (e.trigger !== 'undefined' ? w.onunload({ trigger: "fake_beforeunload" }) : undefined) : true; 
 }
 	
 w.onunload = function (e) {
    var _delayUnloadUntilFinish = 3600; // 3.6 secs
 
-  if( typeof $onUnload === 'function' ){
+  if( typeof $onUnload === 'function' && typeof e.trigger === 'undefined'){
       $onUnload(e);
   }
 
   // c.log('CS:> unloading page');
-	
-  if(l.protocol.indexOf('https') !== 0) { 
-   	return false;
-  }
 
-  Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
-   	w.CODE_SPLINTA.send(
-		pageActivityEvent(
-			'unload',
-			String(
-				Fingerprint2.x64hash128(
-					components.map(
-						function(component) { return component.value; }
-					).join(''), 
-					31
-				)
-			),
-			lastNav
-  		)
-   	);
-  });
+  w.CODE_SPLINTA.send(
+	pageActivityEvent(
+		'unload',
+		w.CODE_SPLINTA.browser_fp,
+		lastNav
+	)
+  );
 
   // Force the browser to wait for the async task above finsh up
   delay(
@@ -3988,7 +4008,7 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 		    K_ATTR_VALUE = d.currentScript.getAttribute(K_ATTR_NAME);
 	    }
 		
-      if(d.currentScript.hasAttribute(R_ATTR_NAME)) {
+      	    if(d.currentScript.hasAttribute(R_ATTR_NAME)) {
 		    E_ATTR_VALUE = d.currentScript.getAttribute(E_ATTR_NAME);
 	    }
 		
@@ -4043,7 +4063,7 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 		      n.sendBeacon(
 			      this['reporting-endpoint'] + "/events?type=ui-event&for=" + payload.type, 
 			      JSON.stringify(payload),
-		      })
+		      )
 		      .catch(c.error)
 		    );
   		},
@@ -4084,26 +4104,6 @@ var id = win.setInterval(
    interval
   );
 }
-			 
-function isChrome74OrLater(){
-   var transitionEndSupported = ('ontransitionend' in win);
-   var klassTest = null;
-	
-   try {
-        class Klass {
-           #privateField = 0
-           getField(){
-	      return this.#privateField;
-	   }
-        }
-
-        klassTest = new Klass();
-   }catch(e){
-       klassTest = null
-   }
-
-   return klassTest !== null && (klassTest.getField() === 0) && transitionEndSupported
-}
 
 function isIE10OrLater(user_agent) {
 var ua = user_agent.toLowerCase();
@@ -4133,21 +4133,13 @@ if(match && parseInt(match[1], 10) >= 11){
  return true
 }
 
-return (typeof win.safari !== 'undefined' || navigator.vendor ==  "Apple Computer, Inc.")
+return (typeof win.safari !== 'undefined' || win.navigator.vendor ==  "Apple Computer, Inc.")
 }
 
 function detectPrivateMode(callback) {
 var is_private;
 	
-if(isChrome74OrLater()){	
-    if('storage' in win.navigator && 'estimate' in win.navigator.storage){
-        ;/* win.navigator.storage.estimate().then(function(estimate){
-	       if(estimate.quota < 120000000){ // Incognito Mode
-                   is_private = true
-	       }
-           })*/
-    }
-}else if (win.webkitRequestFileSystem 
+if (win.webkitRequestFileSystem 
      && (((!!win.navigator.usb) && (typeof win.navigator.usb.getDevices === 'function')) || (true))) {
    win.webkitRequestFileSystem(
        win.TEMPORARY, 1,
@@ -4155,7 +4147,6 @@ if(isChrome74OrLater()){
            is_private = false;
        },
        function(e) {
-           console.log(e);
            is_private = true;
        }
    );
@@ -4199,9 +4190,7 @@ if(isChrome74OrLater()){
    }
  }else {
    try {
-     
        win.localStorage.setItem('test', 1);
-
    } catch(e) {
        is_private = win.navigator.cookieEnabled;
    }
@@ -4228,7 +4217,7 @@ return detectPrivateMode(function(isPrivate) {
  win.CODE_SPLINTA['browser_incognito'] = isPrivate
 })
 
-})));
+}))));
 
 
 /**
@@ -4460,19 +4449,21 @@ return detectPrivateMode(function(isPrivate) {
 			
 			c && c.log("%ctrying to tamper with devtools!!","background: black; color: #00ff00; font-size: x-large;");
 			
-			w.setTimeout(function(){ // not redirecting to... https://wall.codesplinta.com/0x2335
-          var img = new Image();
-          img.src = w.CODE_SPLINTA['reporting-endpoint'] + "/violations?mode=no_redirect&type=devtools_tamper&page_url="
-            + encodeURIComponent(w.location.origin)
-            +"&timestamp="
-            + String((new Date()*1))
-            + "&page_title="
-            + d.title
-            + "&mode=browser_shortcut_keypress"
-            + "&uafingerprint=" + w.CODE_SPLINTA['browser-hash']
-   			}, 1500);
+			w.setTimeout(function(){ 
+				// not redirecting to... https://wall.codesplinta.com/0x2335
+          			var img = new Image();
+				    img.src = w.CODE_SPLINTA['reporting-endpoint'] + "/violations?mode=no_redirect&type=devtools_tamper&page_url="
+				    + encodeURIComponent(w.location.origin)
+				    +"&timestamp="
+				    + String((new Date()*1))
+				    + "&page_title="
+				    + d.title
+				    + "&mode=browser_shortcut_keypress"
+				    + "&uafingerprint=" + w.CODE_SPLINTA['browser-hash']
+			}, 1500);
+				
 			return false;
-  		}
+		}
 	};
 	
 	var _consoleMsg = function(e){
@@ -4482,17 +4473,17 @@ return detectPrivateMode(function(isPrivate) {
 			 d.devToolsTamperStart = (new Date()*1);
 			 
 			w.setTimeout(function(){ // redirecting to... https://wall.codesplinta.com/0x2335
-          w.location.assign(
-            w.CODE_SPLINTA['reporting-endpoint']
-            + "/violations?type=devtools_tamper&page_url="
-            + encodeURIComponent(w.location.origin)
-            +"&page_title="
-            + d.title
-            +"&timestamp="
-            + String(d.devToolsTamperStart)
-            + "&mode=browser_menu_click"
-            + "&uafingerprint=" + w.CODE_SPLINTA['browser-hash']
-				);
+				  w.location.assign(
+				    w.CODE_SPLINTA['reporting-endpoint']
+				    + "/violations?type=devtools_tamper&page_url="
+				    + encodeURIComponent(w.location.origin)
+				    +"&page_title="
+				    + d.title
+				    +"&timestamp="
+				    + String(d.devToolsTamperStart)
+				    + "&mode=browser_menu_click"
+				    + "&uafingerprint=" + w.CODE_SPLINTA['browser-hash']
+							);
 			}, 1500);
 		}else{
 			d.devToolsTamperEnd = (new Date()*1);
