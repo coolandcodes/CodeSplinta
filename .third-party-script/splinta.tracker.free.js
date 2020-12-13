@@ -3454,6 +3454,7 @@ var getPageState = function () {
   if (d.hasFocus() || d.activeElement !== null) {
     return 'active';
   }
+	
   return 'visible';
 };
 	
@@ -3870,7 +3871,7 @@ w.onbeforeunload = function (e) {
   var isLoginNav = lastActivatedNode.href === w.CODE_SPLINTA.href.login;
   var isDownload = ('download' in lastActivatedNode);	
 	
-  lastNav = e.context && e.context.newURL ? e.context.newURL : lastActivatedNode.href;
+  lastNav = e.context ? e.context.newURL || d.URL : lastActivatedNode.href;
 
 	
   if( typeof $onBeforeUnload === 'function' && typeof e.trigger === 'undefined' ){
@@ -3886,7 +3887,8 @@ w.onbeforeunload = function (e) {
   return (isLoginNav || isHomeNav || isDownload) ? (e.trigger !== 'undefined' ? w.onunload({ trigger: "fake_beforeunload" }) : undefined) : true; 
 }
 	
-w.onunload = function (e) {
+	
+var onUnload = function (e) {
    var _delayUnloadUntilFinish = 3600; // 3.6 secs
 
   if( typeof $onUnload === 'function' && typeof e.trigger === 'undefined'){
@@ -3895,7 +3897,11 @@ w.onunload = function (e) {
 
   // c.log('CS:> unloading page');
 
-  w.CODE_SPLINTA.send(
+  if( getPageState() === 'visible' ) {
+	return;
+  }
+	
+  w.CODE_SPLINTA.ping(
 	pageActivityEvent(
 		'unload',
 		w.CODE_SPLINTA.browser_fp,
@@ -3907,7 +3913,15 @@ w.onunload = function (e) {
   delay(
 	_delayUnloadUntilFinish
   );
-});
+};
+
+// Safri 13+ doesn't fire unload event proper when navigating away
+// from a page. So we use pagehide event.
+if (typeof w.safari !== 'undefined' && w.safari.pushNotification ) {
+  w.onpagehide = onUnload;
+} else {
+  w.onunload = onUnload
+}
 	
 // Operas' proprietary property to force the browser to always retrieve the page from the server or the cache
 // intelligently (Default : 'automatic' | 'fast' )
@@ -4048,15 +4062,6 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 			}
 			
 			w.name = JSON.stringify(_data);
-		},
-		send: function(payload){
-			return (
-				fetch(this['reporting-endpoint'] + "/events?type=ui-event&for=" + payload.type, {
-					method: "POST",
-					body: JSON.stringify(payload),
-			      	})
-		      		.catch(c.error)	
-			);
 		},
   		ping: function(payload) {
 		    return (
