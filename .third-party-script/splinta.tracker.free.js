@@ -3813,7 +3813,8 @@ d.onclick = function (e) {
 				w.CODE_SPLINTA.browser_fp,
 				lastNav,
 				'doc_click'
-			)
+			),
+			true
 	);
 }
 	
@@ -3832,7 +3833,8 @@ w.onresize = function (e) {
 				w.CODE_SPLINTA.browser_fp,
 				lastNav,
 				'win_resize'
-			)
+			),
+		        true
 	);
 }
 
@@ -3851,7 +3853,8 @@ d.addEventListener("visibilitychange", function (e) {
 		w.CODE_SPLINTA.browser_fp,
 		lastNav,
 		'doc_visibility'
-	)
+	),
+	true
   );
 });
 	
@@ -3890,6 +3893,16 @@ w.onbeforeunload = function (e) {
 	
 var onUnload = function (e) {
    var _delayUnloadUntilFinish = 3600; // 3.6 secs
+	
+  // Safri 13+ doesn't fire unload event proper when navigating away from
+  // a page. So we use pagehide event as fallback and flag the callback.
+  if (typeof w.safari !== 'undefined' && w.safari.pushNotification ) {
+	if(!onUnload._called){
+	    onUnload._called = true;
+	} else {
+	    return;
+	}
+  }
 
   if( typeof $onUnload === 'function' && typeof e.trigger === 'undefined'){
       $onUnload(e);
@@ -3901,12 +3914,17 @@ var onUnload = function (e) {
 	return;
   }
 	
+  var activityEvent = pageActivityEvent(
+	'unload',
+	w.CODE_SPLINTA.browser_fp,
+	lastNav
+  );
+	
+  // add all tracked data for the current page view session
+  activityEvent.extras = JSON.parse(w.name || '{}');
+	
   w.CODE_SPLINTA.ping(
-	pageActivityEvent(
-		'unload',
-		w.CODE_SPLINTA.browser_fp,
-		lastNav
-	)
+	activityEvent
   );
 
   // Force the browser to wait for the async task above finsh up
@@ -3915,13 +3933,10 @@ var onUnload = function (e) {
   );
 };
 
-// Safri 13+ doesn't fire unload event proper when navigating away
-// from a page. So we use pagehide event.
-if (typeof w.safari !== 'undefined' && w.safari.pushNotification ) {
-  w.onpagehide = onUnload;
-} else {
-  w.onunload = onUnload
-}
+
+ w.onpagehide = onUnload;
+ w.onunload = onUnload
+
 	
 // Operas' proprietary property to force the browser to always retrieve the page from the server or the cache
 // intelligently (Default : 'automatic' | 'fast' )
@@ -4313,7 +4328,7 @@ return detectPrivateMode(function(isPrivate) {
 		}
 		
 		if(n.onLine){
-			n.sendBeacon(
+			w.CODE_SPLINTA.ping(
 				w.CODE_SPLINTA['reporting-endpoint'] + "/events?type=console_output&for=", 
 				JSON.stringify(__consoleOutputCache)
 			);
@@ -4326,7 +4341,6 @@ return detectPrivateMode(function(isPrivate) {
 	};
 	
 	if(!w.isTrident_IE && w.addEventListener){
-	
 		w.addEventListener('pageshow', _consoleOutputCacheCallback, false);
 		w.addEventListener('pagehide', _consoleOutputPush, false);
 	}else {
@@ -4456,15 +4470,17 @@ return detectPrivateMode(function(isPrivate) {
 			
 			w.setTimeout(function(){ 
 				// not redirecting to... https://wall.codesplinta.com/0x2335
-          			var img = new Image();
-				    img.src = w.CODE_SPLINTA['reporting-endpoint'] + "/violations?mode=no_redirect&type=devtools_tamper&page_url="
-				    + encodeURIComponent(w.location.origin)
-				    +"&timestamp="
-				    + String((new Date()*1))
-				    + "&page_title="
-				    + d.title
-				    + "&mode=browser_shortcut_keypress"
-				    + "&uafingerprint=" + w.CODE_SPLINTA['browser-hash']
+          			w.CODE_SPLINTA.ping(
+					    w.CODE_SPLINTA['reporting-endpoint'] + "/violations?mode=no_redirect&type=devtools_tamper&page_url="
+					    + encodeURIComponent(d.URL)
+					    + "&mode=browser_shortcut_keypress"
+					    + "&for=",
+					  JSON.stringify({
+					     timestamp: +(new Date),
+					     page_title: d.title,
+					     browser_fp: w.CODE_SPLINTA['browser_fp']
+					  })
+				)
 			}, 1500);
 				
 			return false;
@@ -4475,23 +4491,24 @@ return detectPrivateMode(function(isPrivate) {
 		
 		
 		if(e.detail.open){
-			 d.devToolsTamperStart = (new Date()*1);
+			 d.devToolsTamperStart = +(new Date);
 			 
 			w.setTimeout(function(){ // redirecting to... https://wall.codesplinta.com/0x2335
-				  w.location.assign(
+				w.CODE_SPLINTA.ping(
 				    w.CODE_SPLINTA['reporting-endpoint']
 				    + "/violations?type=devtools_tamper&page_url="
-				    + encodeURIComponent(w.location.origin)
-				    +"&page_title="
-				    + d.title
-				    +"&timestamp="
-				    + String(d.devToolsTamperStart)
+				    + encodeURIComponent(d.URL)
 				    + "&mode=browser_menu_click"
-				    + "&uafingerprint=" + w.CODE_SPLINTA['browser-hash']
-							);
+				    + "&for=",
+				    JSON.stringify({
+					timestamp: d.devToolsTamperStart,
+					page_title: d.title,
+					browser_fp: w.CODE_SPLINTA['browser_fp']
+				    })
+				);
 			}, 1500);
 		}else{
-			d.devToolsTamperEnd = (new Date()*1);
+			d.devToolsTamperEnd = +(new Date);
 		}
 		
 	};
@@ -4511,20 +4528,20 @@ return detectPrivateMode(function(isPrivate) {
 			
           		var minimalUserResponseInMiliseconds = 40; // 100
           		var before = new Date().getTime(); 
-			          debugger; 
+			       debugger; 
           		var after = new Date().getTime(); 
           		if (after - before >= minimalUserResponseInMiliseconds) { 
-				          if(!devtools.open){
-                 			emitEvent(true, orientation);
+			     if(!devtools.open){
+					emitEvent(true, orientation);
                  			devtools.open = true;
-					            devtools.orientation = orientation;
-				          }
+				    	devtools.orientation = orientation;
+			  	}
           		}else{ 
-                  if(devtools.open){
-                      emitEvent(false, null);
-					            devtools.open = false;
-					            devtools.orientation = null;
-                  }
+                  			if(devtools.open){
+                      				emitEvent(false, null);
+					  	devtools.open = false;
+					    	devtools.orientation = null;
+                  			}
           		} 
           
      		} else {
