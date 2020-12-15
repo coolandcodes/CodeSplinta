@@ -3631,7 +3631,9 @@ w.addEventListener("load", function () {
 				31
 			)
 		);
-       		// Sends the event to our servers for forwarding on to https://reporting.codesplinta.co
+		
+       		// Sends the event to our servers for forwarding 
+		// on to https://reporting.codesplinta.co/events
     		return w.CODE_SPLINTA.ping(
 				pageLoadEvent(
 					'load', 
@@ -3922,6 +3924,7 @@ var onUnload = function (e) {
 	
   // add all tracked data for the current page view session
   activityEvent.extras = JSON.parse(w.name || '{}');
+  w.name = "";
 	
   w.CODE_SPLINTA.ping(
 	activityEvent
