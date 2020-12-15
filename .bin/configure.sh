@@ -14,7 +14,7 @@ replace=""
 path=${basedir//$find/$replace}
 
 pcfile="$path/.git/hooks/pre-commit"
-pmfile="$path/.git/hooks/pre-merge"
+pmfile="$path/.git/hooks/post-merge"
 
 if [ -f "$pcfile" ]; then
     rm "$path/.git/hooks/pre-commit"
@@ -22,8 +22,8 @@ if [ -f "$pcfile" ]; then
 fi
 
 if [ -f "$pmfile" ]; then
-    rm "$path/.git/hooks/pre-merge"
-    rm "$path/.git/hooks/pre-merge-hook.js"
+    rm "$path/.git/hooks/post-merge"
+    rm "$path/.git/hooks/post-merge-hook.js"
 fi
 
 if [[ $(cp "$path/_githooks/post-merge" "$path/_githooks/post-merge-hook.js" "$path/.git/hooks") -eq 0 ]]; then
