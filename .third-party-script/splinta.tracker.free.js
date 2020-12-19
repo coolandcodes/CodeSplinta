@@ -2772,7 +2772,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 	};
   }
 	
-  if (!(w.performance && w.performance.now)) { // IE9 is a major culprit!!
+  if (!w.performance) { // IE9 is a major culprit!!
     w.performance = (function(){
 	    
 	      /**
@@ -2818,15 +2818,40 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
 			return (Date.now ? Date.now() : +(new Date)) - startOffset;
 		};
 	}
+	    
+	
+	if(!w.PerformanceNavigation){
 
+		  function PerformanceNavigation(type, redirectCount){
+		     this.type = type;
+		     this.redirectCount = redirectCount;
 
+		     this.TYPE_BACK_FORWARD = 2;
+		     this.TYPE_NAVIGATE = 0;
+		     this.TYPE_RELOAD = 1;
+		     this.TYPE_RESERVED = 255;
+		  }
+
+		  PerformanceNavigation.prototype.toJSON = function(){
+		    return { type: this.type, redirectCount: this.redirectCount };
+		  };
+
+	}
+
+	if(!w.performance.navigation){
+	  try{
+	     w.performance.navigation = new PerformanceNavigation(0, 0);
+	     w.performace.navigation.__polyfill = true;
+	  }catch(ex){}
+	}
+	    
 	if( !performance.mark ){
 		performance.mark = performance.webkitMark || function (name){
 			var mark = {
-				  name:			name
-				, entryType:	'mark'
-				, startTime:	performance.now()
-				, duration:		0
+				  name:	name
+				, entryType: 'mark'
+				, startTime: performance.now()
+				, duration: 0
 			};
 			_entries.push(mark);
 			_marksIndex[name] = mark;
@@ -3461,19 +3486,28 @@ var getPageState = function () {
 var perf = w.performance;
 var jsHeapUsed = perf.memory && perf.memory.usedJSHeapSize;
 var jsHeapTotal = perf.memory && perf.memory.totalJSHeapSize;
+	
+Object.defineProperty(d, 'referredFrom', {
+	writable: false,
+	value: function(){ 
+		return w.CODE_SPLINTA.formTracked('last_loaded_url');
+	}
+});
 
 var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
   var nt = perf.timing;
+  var xt = perf.navigation;
 	
   var event = {
     type: pageEventName,
     page_event_id: getPageEventId(),
-    browser_fp: browserFingerPrint,
+    agent_fp: browserFingerPrint,
     page_state: getPageState(),
     page_prior_nav: d.referrer || d.referredFrom,
     page_last_nav: pageLastNav,
-    // Network connectivity
-    online: n.onLine,
+    page_nav_type: xt.type == 0 ? 'browser_reload' : (xt.type === 2 ? 'browser_back_forward' : 'browser_relocate'),
+    // Network status
+    network_status: n.onLine,
     // User agent Data. We can parse the user agent into device, os name, os version,
     // browser name, browser engine, and browser version fields if we want to later.
     browser_ua_data: { },
@@ -3533,14 +3567,17 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
     });
   }
 	
-  // Memory info (Chrome) — also send this on unload so we can compare heap size
+  // Memory Info (Chrome) — also send this on unload so we can compare heap size
   // and understand how much memory we're using as the user interacts with the page
-  /*
+  
   if (perf.memory) {
-    event.js_heap_size_total_b = jsHeapTotal;
-    event.js_heap_size_used_b = jsHeapUsed;
+	var memoryInfo = {};
+    
+	memoryInfo.js_heap_size_total_b = jsHeapTotal;
+    	memoryInfo.js_heap_size_used_b = jsHeapUsed;
+	  
+	event.memoryInfo = memoryInfo;
   }
-  */
 	
   // Redirect count (inconsistent browser support)
   // Find out if the user was redirected on their way to landing on this page,
@@ -3682,10 +3719,11 @@ var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav,
     type: pageEventName,
     page_event_id: getPageEventId(),
     activity_name: activityName,
-    browser_fp: browserFingerPrint,
+    agent_fp: browserFingerPrint,
     page_state: getPageState(),
     page_prior_nav: d.URL,
     page_last_nav: pageLastNav,
+    page_nav_type: xt.type == 0 ? 'browser_reload' : (xt.type === 2 ? 'browser_back_forward' : 'browser_relocate'),
     // Chrome-only (for now) information on internet connection type (4g, wifi, etc.)
     // https://developers.google.com/web/updates/2017/10/nic62
     connection_type: n.connection && n.connection.type,
@@ -3695,7 +3733,7 @@ var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav,
     timestamp: (Date.now ? Date.now() : +(new Date))
   };
 	
-  // Memory info (Chrome) — also send this on load so we can compare heap size
+  // Memory Info (Chrome) — also send this on load so we can compare heap size
   // and understand how much memory we're using as the user interacts with the page.
 
   if (perf.memory) {
@@ -3724,7 +3762,7 @@ var delay = function (timeout) {
 	) ? +(new Date) + timeout
 	  : 0;
 
-     // lock browser until delay is met
+     // lock browser until delay period is met
      if (until) {
 	do {
 	     now = new Date();
@@ -3742,30 +3780,12 @@ var getNavDirection = function (stack, lastLoadedUrl) {
     return direction;
 }
 
-w.onpageshow = function(e) {
-  var direction = getNavDirection(
-  	history.spaNavigationStack,
-	w.CODE_SPLINTA.fromTracked('last_loaded_url')
-  );
-  	
-  if(direction === 1 || direction === 0 ) {
-	  ;
-  } else { 
-     	;
-  }
-}
+if (typeof w.History === 'function') {
+	w.History.prototype.spaNavigationStack = [];
 	
-Object.defineProperty(d, 'referredFrom', {
-	writable: false,
-	value: function(){ 
-		return w.CODE_SPLINTA.formTracked('last_loaded_url');
-	}
-});
+	var __pushState = w.History.prototype.pushState;
 
-if (typeof History === 'function') {
-	var __pushState = History.prototype.pushState;
-
-	History.prototype.pushState = function() {
+	w.History.prototype.pushState = function() {
 	    var args = [].slice.call(arguments);
 	    var url = arguments[2];
 	    var newURL = ((url.indexOf('http') === 0 ? url : w.location.origin + url) || '').toString();
@@ -3773,7 +3793,9 @@ if (typeof History === 'function') {
 	    var isProperNav = oldURL !== newURL;
 
 	    if(w.performace.navigation.__polyfill){
-	       w.performance.navigation.type = isProperNav ? 0 : 1;
+	       if(window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {	    
+	       	   w.performance.navigation.type = isProperNav ? 0 : 1;
+	 	}
 	    }
 	
 	    w.CODE_SPLINTA.track('last_loaded_url', newURL);
@@ -3793,6 +3815,19 @@ if (typeof History === 'function') {
 
 	    return __pushState.apply(this, args);
 	};
+}
+	
+w.onpageshow = function(e) {
+  var direction = getNavDirection(
+  	w.history.spaNavigationStack || [],
+	w.CODE_SPLINTA.fromTracked('last_loaded_url')
+  );
+  	
+  if( direction === 1 ) {
+	;
+  } else if ( direction === -1 ) { 
+     	;
+  }
 }
 	
 w.onhashchange = function (e){
