@@ -3470,7 +3470,7 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
     page_event_id: getPageEventId(),
     browser_fp: browserFingerPrint,
     page_state: getPageState(),
-    page_prior_nav: d.referredFrom || d.referrer,
+    page_prior_nav: d.referrer || d.referredFrom,
     page_last_nav: pageLastNav,
     // Network connectivity
     online: n.onLine,
@@ -3622,6 +3622,8 @@ w.addEventListener("load", function () {
    		return false;
    	}
 	  
+	w.CODE_SPLINTA.track('last_loaded_url', d.URL);
+	  
         Fingerprint2.getPromise(browserFingerPrintOptions).then(function (components) {
  		w.CODE_SPLINTA.browser_fp = String(
 			Fingerprint2.x64hash128(
@@ -3632,17 +3634,23 @@ w.addEventListener("load", function () {
 			)
 		);
 		
-       		// Sends the event to our servers for forwarding 
-		// on to https://reporting.codesplinta.co/events
-    		return w.CODE_SPLINTA.ping(
-				pageLoadEvent(
+		var loadEvent = pageLoadEvent(
 					'load', 
 					w.CODE_SPLINTA.browser_fp,
 					d.URL
-				)
+		);
+
+		// add all tracked data for the current page view session
+  		loadEvent.extras = JSON.parse(w.name || '{}');
+  		w.name = "";
+		
+       		// Sends the event to our servers for forwarding 
+		// on to https://reporting.codesplinta.co/events
+    		return w.CODE_SPLINTA.ping(
+			loadEvent
 		);
         });
-  }, 500);
+  }, 6500);
 });	
 	
 // Capture a _count_ of errors that occurred while interacting with this page.
@@ -3689,14 +3697,18 @@ var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav,
 	
   // Memory info (Chrome) — also send this on load so we can compare heap size
   // and understand how much memory we're using as the user interacts with the page.
-  /*
+
   if (perf.memory) {
-    event.js_heap_size_used_start_b = jsHeapUsed;
-    event.js_heap_size_total_b = perf.memory.totalJSHeapSize;
-    event.js_heap_size_used_b = perf.memory.usedJSHeapSize;
-    event.js_heap_change_b = perf.memory.usedJSHeapSize - jsHeapUsed;
+	  
+    var memoryInfo = {};
+	  
+    memoryInfo.js_heap_size_used_start_b = jsHeapUsed;
+    memoryInfo.js_heap_size_total_b = perf.memory.totalJSHeapSize;
+    memoryInfo.js_heap_size_used_b = perf.memory.usedJSHeapSize;
+    memoryInfo.js_heap_change_b = perf.memory.usedJSHeapSize - jsHeapUsed;
+
+    event.memoryInfo = memoryInfo;
   }
-  */
 	
   if( pageEventName === 'unload' ) {
   	event.user_timing_window_open_duration_s = openDuration;
@@ -3722,78 +3734,100 @@ var delay = function (timeout) {
      return true;
 }
 
-var getNavDirection = function () {
-    // After travelling in the history stack
-    var positionLastShown = Number( // If none, then zero
-      w.sessionStorage.getItem( 'cs_positionLastShown' ));
-	
-    var position = h.state; // Absolute position in stack
-	
-    if( position === null || position.state === undefined ) // Meaning a new entry on the stack
-    {
-	if ( position !== null ) {
-		position.state = positionLastShown + 1;
-	} else {
-        	position = positionLastShown + 1; // Top of stack
-	}
-
-        // (1) Stamp the entry with its own position in the stack
-        h.replaceState( position, '' );
-    } 
-    // (2) Keep track of the last position shown
-    w.sessionStorage.setItem( 'cs_positionLastShown' , String(typeof position === 'number' ? position : position.state) );
-
+var getNavDirection = function (stack, lastLoadedUrl) {
+    
     // (3) Discover the direction of travel by comparing the two
-    var direction = Math.sign( typeof position === 'number' ? position - positionLastShown : position.state - positionLastShown );
+    var direction = Math.sign( 1 );
     // One of backward (-1), reload (0) and forward (1)
     return direction;
 }
 
 w.onpageshow = function(e) {
-  var direction = getNavDirection();
+  var direction = getNavDirection(
+  	history.spaNavigationStack,
+	w.CODE_SPLINTA.fromTracked('last_loaded_url')
+  );
   	
   if(direction === 1 || direction === 0 ) {
-	  Object.defineProperty(d, 'referredFrom', {
-		writable: false,
-		value: function(){ 
-			return String(d.location);
-		}
-	  });
+	  ;
   } else { 
-     	Object.defineProperty(d, 'referredFrom', {
-		writable: false,
-		value: function(){ 
-			return null;
-		}
-	  });
+     	;
   }
 }
 	
-w.onhashchange = function (e){
+Object.defineProperty(d, 'referredFrom', {
+	writable: false,
+	value: function(){ 
+		return w.CODE_SPLINTA.formTracked('last_loaded_url');
+	}
+});
 
-   w.onbeforeunload({ srcDocument:d, currentTarget:w, type: "beforeunload", trigger: e.type, context: {oldURL: e.oldURL, newURL: e.newURL } });
+if (typeof History === 'function') {
+	var __pushState = History.prototype.pushState;
+
+	History.prototype.pushState = function() {
+	    var args = [].slice.call(arguments);
+	    var url = arguments[2];
+	    var newURL = ((url.indexOf('http') === 0 ? url : w.location.origin + url) || '').toString();
+	    var oldURL = d.URL;
+	    var isProperNav = oldURL !== newURL;
+
+	    if(w.performace.navigation.__polyfill){
+	       w.performance.navigation.type = isProperNav ? 0 : 1;
+	    }
+	
+	    w.CODE_SPLINTA.track('last_loaded_url', newURL);
+
+	    if(isProperNav){
+	       w.onbeforeunload({
+		  srcDocument: d, 
+		  currentTarget: w,
+		  type: 'beforeunload', 
+		  trigger: 'spa-nav', 
+		  context: {
+		  	oldURL: oldURL, 
+		  	newURL: newURL
+		  }
+	       });
+	    }
+
+	    return __pushState.apply(this, args);
+	};
+}
+	
+w.onhashchange = function (e){
+   var isProperNav = e.oldURL !== e.newURL;
+
+   if(perf.navigation.__polyfill){
+	perf.navigation.type = isProperNav ? 0 : 1;
+   }
+	
+   w.CODE_SPLINTA.track('last_loaded_url', e.newURL);
+
+   w.onbeforeunload({ 
+	srcDocument: d, 
+	currentTarget: w, 
+	type: "beforeunload", 
+	trigger: e.type, 
+	context: {
+	   oldURL: e.oldURL, 
+	   newURL: e.newURL 
+	} 
+   });
 }
 
 w.onpopstate = function(e) {
   var direction = getNavDirection();
 	
   if(direction === 1 || direction === 0 ) {
-	  Object.defineProperty(d, 'referredFrom', {
-		writable: false,
-		value: function(){ 
-			return String(d.location);
-		}
-	  });
+	  ;
   } else { 
-     	Object.defineProperty(d, 'referredFrom', {
-		writable: false,
-		value: function(){ 
-			return null;
-		}
-	  });
+     	;
   }
-  
-  w.onbeforeunload({ srcDocument:d, currentTarget:w, type: "beforeunload", trigger: e.type, context: {state: e.state} }); 
+	
+  if(w.performace.navigation.__polyfill){
+       w.performance.navigation.type = 2;
+  }
 };
 
 w.onscroll = d.onmousewheel = function (e) {
@@ -3808,7 +3842,7 @@ d.onclick = function (e) {
 	
    	var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
 	
-	return w.CODE_SPLINTA.track(
+	w.CODE_SPLINTA.track(
 			'ui-event',
 			pageActivityEvent(
 				'activity', 
@@ -3818,7 +3852,30 @@ d.onclick = function (e) {
 			),
 			true
 	);
-}
+	
+	if(e.target.tagName === 'A'){
+	       var oldURL = d.URL;
+	       var newURL = e.target.href;
+	       var isProperNav = oldURL !== newURL;
+
+	       if(perf.navigation.__polyfill){
+		  perf.navigation.type = isProperNav ? 0 : 1;
+	       }
+		
+	       w.CODE_SPLINTA.track('last_loaded_url', newURL);
+
+	       w.onbeforeunload({ 
+		   srcDocument: d, 
+		   currentTarget: w,
+		   type: 'beforeunload', 
+		   trigger: e.type, 
+		   context: {
+		   	oldURL: oldURL, 
+		   	newURL: newURL
+		   }
+	       }); 
+       } 
+};
 	
 w.onresize = function (e) {
 	var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
@@ -3863,7 +3920,6 @@ d.addEventListener("visibilitychange", function (e) {
 
 var $onUnload = w.onunload;
 var $onBeforeUnload = w.onbeforeunload;
-var lastNav;
 
 w.onbeforeunload = function (e) {
   var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
@@ -3876,7 +3932,7 @@ w.onbeforeunload = function (e) {
   var isLoginNav = lastActivatedNode.href === w.CODE_SPLINTA.href.login;
   var isDownload = ('download' in lastActivatedNode);	
 	
-  lastNav = e.context ? e.context.newURL || d.URL : lastActivatedNode.href;
+  lastNav = e.context ? e.context.newURL : lastActivatedNode.href;
 
 	
   if( typeof $onBeforeUnload === 'function' && typeof e.trigger === 'undefined' ){
@@ -3885,11 +3941,7 @@ w.onbeforeunload = function (e) {
 
   //c.log('CS:> before; unloading page');
 
-  if( !(isLogoutNav || isHomeNav || isDownload) ){ 
-	  e.returnValue = 'Are you sure?'; // IE 8-/Firefox 36-/Chrome 34-
-  }
-
-  return (isLoginNav || isHomeNav || isDownload) ? (e.trigger !== 'undefined' ? w.onunload({ trigger: "fake_beforeunload" }) : undefined) : true; 
+  return (typeof e.trigger !== 'undefined' || isLogoutNav || isLoginNav || isHomeNav || !isDownload) ? w.onunload({ trigger: "fake_beforeunload", context: { lastNav: lastNav } }) : undefined; 
 }
 	
 	
@@ -3912,14 +3964,15 @@ var onUnload = function (e) {
 
   // c.log('CS:> unloading page');
 
-  if( getPageState() === 'visible' ) {
+  if( getPageState() !== 'visible' ) {
 	return;
   }
 	
   var activityEvent = pageActivityEvent(
 	'unload',
 	w.CODE_SPLINTA.browser_fp,
-	lastNav
+	e.context ? e.context.lastNav : '',
+	'page_change'
   );
 	
   // add all tracked data for the current page view session
@@ -3930,10 +3983,12 @@ var onUnload = function (e) {
 	activityEvent
   );
 
-  // Force the browser to wait for the async task above finsh up
-  delay(
-	_delayUnloadUntilFinish
-  );
+  if (typeof e.trigger === 'undefined') {
+     // Force the browser to wait for the async task above finsh up
+     delay(
+ 	_delayUnloadUntilFinish
+     );
+  }
 };
 
 
@@ -4059,6 +4114,17 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 		   login: '',
 		   logout: '',
 		   home: ''
+		},
+		fromTracked: function(name){
+		   	var data = w.name;
+			
+			if (data === ''){
+			   data = '{}';
+			}
+			
+		 	var _data = JSON.parse(data);
+
+                       return _data[name];
 		},
 		track: function(name, value, asArray) {
 			var data = w.name;
