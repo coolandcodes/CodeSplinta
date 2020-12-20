@@ -3519,13 +3519,13 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
     // window size more comfortable.
     //
     // Capture how large the user has made their current window
-    window_height: w.innerHeight,
-    window_width: w.innerWidth,
-    window_scroll_offset_y: w.pageYOffset,
-    window_scroll_offset_x: w.pageXOffset,
+    viewport_height: w.innerHeight,
+    viewport_width: w.innerWidth,
+    viewport_scroll_y: w.pageYOffset,
+    viewport_scroll_x: w.pageXOffset,
     // Capture how large the user's entire screen is
-    screen_height: w.screen && w.screen.height,
-    screen_width: w.screen && w.screen.width,
+    screen_height: w.screen && w.screen.height || w.outerHeight,
+    screen_width: w.screen && w.screen.width || w.outerWidth,
     // Chrome-only (for now) information on internet connection type (4g, wifi, etc.)
     // https://developers.google.com/web/updates/2017/10/nic62
     connection_type: n.connection && n.connection.type,
@@ -3582,9 +3582,7 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
   // Redirect count (inconsistent browser support)
   // Find out if the user was redirected on their way to landing on this page,
   // so we can have visibility into whether redirects are slowing down the experience
-  event.redirect_count =
-    perf.navigation &&
-    perf.navigation.redirectCount;
+  event.redirect_count = perf.navigation.redirectCount;
   
   // ResourceTiming stats
   // We don't care about getting stats for every single static asset, but we do
@@ -3652,7 +3650,7 @@ var browserFingerPrintOptions = {
 };
 
 // Send this wide event we've constructed after the page has fully loaded
-w.addEventListener("load", function () {
+w.onload = function (e) {
   // Wait a tick so this all runs after any onload handlers
   w.setTimeout(function() {
 	if(l.protocol.indexOf('https') !== 0) { 
@@ -3672,9 +3670,9 @@ w.addEventListener("load", function () {
 		);
 		
 		var loadEvent = pageLoadEvent(
-					'load', 
-					w.CODE_SPLINTA.browser_fp,
-					d.URL
+			'load', 
+			w.CODE_SPLINTA.browser_fp,
+			d.URL
 		);
 
 		// add all tracked data for the current page view session
@@ -3687,7 +3685,7 @@ w.addEventListener("load", function () {
 			loadEvent
 		);
         });
-  }, 6500);
+  }, 500);
 });	
 	
 // Capture a _count_ of errors that occurred while interacting with this page.
@@ -3723,7 +3721,6 @@ var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav,
     page_state: getPageState(),
     page_prior_nav: d.URL,
     page_last_nav: pageLastNav,
-    page_nav_type: xt.type == 0 ? 'browser_reload' : (xt.type === 2 ? 'browser_back_forward' : 'browser_relocate'),
     // Chrome-only (for now) information on internet connection type (4g, wifi, etc.)
     // https://developers.google.com/web/updates/2017/10/nic62
     connection_type: n.connection && n.connection.type,
@@ -3770,13 +3767,55 @@ var delay = function (timeout) {
      }
 
      return true;
-}
+};
 
-var getNavDirection = function (stack, lastLoadedUrl) {
+var getNavDirection = function (navStack, lastLoadedURL) {
+    // One of backward (-1), reload (0), inload (-9) and forward (1)
+    var direction = -9;
+    // The current URL on browser page
+    var docURL = d.location.href;
+    // temporary "auxillary" stack object to aid page nav logic
+    var auxStack = [];
+    // Take note of the intial state of the "navigation" stack
+    var wasNavStackEmpty = navStack.length === 0;
+	
+    if(!wasNavStackEmpty) {
+	    auxStack.push(
+		navStack.pop()
+	    );
+    } else {
+    	auxStack.push(docURL);
+    }
+	
+    // Check top of the "navigation" stack
+    if (docURL === navStack[navStack.length - 1]) {
+    	direction = -1; // Back
+    } else {
+	// Check top of the "auxillary" stack
+     	if (lastLoadedURL === auxStack[auxStack.length -1]) {
+		if (lastLoadedURL === docURL) {
+          		if (wasNavStackEmpty) {
+				direction = -9; // InLoad
+			} else {
+				direction = 0; // Reload
+			}
+		} else {
+	    		direction = 1; // Forward
+		}
+	}
+    }
+	
+    if (direction !== -1) {
+    	if(auxStack.length){
+		navStack.push(
+			auxStack.pop()
+	    	);
+	}
+	    
+	navStack.push(docURL);
+    } 
     
-    // (3) Discover the direction of travel by comparing the two
-    var direction = Math.sign( 1 );
-    // One of backward (-1), reload (0) and forward (1)
+    // return the direction of navigation
     return direction;
 }
 
@@ -3792,16 +3831,17 @@ if (typeof w.History === 'function') {
 	    var oldURL = d.URL;
 	    var isProperNav = oldURL !== newURL;
 
-	    if(w.performace.navigation.__polyfill){
-	       if(window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {	    
-	       	   w.performance.navigation.type = isProperNav ? 0 : 1;
+	    if(perf.navigation.__polyfill){
+	       if(perf.navigation.type === perf.navigation.TYPE_BACK_FORWARD) {	    
+	       	   perf.navigation.type = isProperNav 
+				? perf.navigation.TYPE_NAVIGATE 
+		   		: perf.navigation.TYPE_RELOAD;
 	 	}
 	    }
-	
-	    w.CODE_SPLINTA.track('last_loaded_url', newURL);
 
 	    if(isProperNav){
-	       w.onbeforeunload({
+		w.CODE_SPLINTA.track('last_loaded_url', newURL);
+	       	w.onbeforeunload({
 		  srcDocument: d, 
 		  currentTarget: w,
 		  type: 'beforeunload', 
@@ -3812,29 +3852,36 @@ if (typeof w.History === 'function') {
 		  }
 	       });
 	    }
+		
+	    w.setTimeout(function(){ 
+		    w.onpageshow({ 
+			    presisted: false, 
+			    trigger: 'pushState' 
+		    }); 
+	    }, 0); 
 
 	    return __pushState.apply(this, args);
 	};
 }
 	
 w.onpageshow = function(e) {
-  var direction = getNavDirection(
-  	w.history.spaNavigationStack || [],
-	w.CODE_SPLINTA.fromTracked('last_loaded_url')
-  );
-  	
-  if( direction === 1 ) {
-	;
-  } else if ( direction === -1 ) { 
-     	;
-  }
-}
+   	w.CODE_SPLINTA.track('page_cached', e.persisted);
+	
+	if(typeof e.trigger !== 'undefined'){
+		w.onload({
+			trigger: e.trigger,
+			type: 'load'
+		});
+	}
+};
 	
 w.onhashchange = function (e){
    var isProperNav = e.oldURL !== e.newURL;
 
    if(perf.navigation.__polyfill){
-	perf.navigation.type = isProperNav ? 0 : 1;
+	perf.navigation.type = isProperNav 
+		? perf.navigation.TYPE_NAVIGATE 
+		: perf.navigation.TYPE_RELOAD;
    }
 	
    w.CODE_SPLINTA.track('last_loaded_url', e.newURL);
@@ -3845,6 +3892,7 @@ w.onhashchange = function (e){
 	type: "beforeunload", 
 	trigger: e.type, 
 	context: {
+	   target: e.target.target,
 	   oldURL: e.oldURL, 
 	   newURL: e.newURL 
 	} 
@@ -3852,13 +3900,16 @@ w.onhashchange = function (e){
 }
 
 w.onpopstate = function(e) {
-  var direction = getNavDirection();
+  var navDirection = getNavDirection(
+  	w.history.spaNavigationStack || [],
+	w.CODE_SPLINTA.fromTracked('last_loaded_url')
+  );
 	
-  if(direction === 1 || direction === 0 ) {
-	  ;
-  } else { 
-     	;
-  }
+  w.CODE_SPLINTA.track('page_nav_direction', navDirection);
+
+  w.setTimeout(function(){ 
+	w.onpageshow({ presisted: false, trigger: 'popState' }); 
+  }, 0); 
 	
   if(w.performace.navigation.__polyfill){
        w.performance.navigation.type = 2;
@@ -3866,7 +3917,7 @@ w.onpopstate = function(e) {
 };
 
 w.onscroll = d.onmousewheel = function (e) {
-	;
+	var initPos = w.pageYOffset;
 }
 	
 d.onclick = function (e) {
@@ -3889,6 +3940,7 @@ d.onclick = function (e) {
 	);
 	
 	if(e.target.tagName === 'A'){
+			
 	       var oldURL = d.URL;
 	       var newURL = e.target.href;
 	       var isProperNav = oldURL !== newURL;
@@ -3898,6 +3950,13 @@ d.onclick = function (e) {
 	       }
 		
 	       w.CODE_SPLINTA.track('last_loaded_url', newURL);
+		
+	      if(isProperNav 
+		   	&& newURL.indexOf('#') > -1){
+		   // Allow the 'hashchange' event to deal with triggering
+		   // the 'onbeforeunload' event by returning control here
+		   return; 
+		}
 
 	       w.onbeforeunload({ 
 		   srcDocument: d, 
@@ -3905,6 +3964,7 @@ d.onclick = function (e) {
 		   type: 'beforeunload', 
 		   trigger: e.type, 
 		   context: {
+			target: e.target.target,
 		   	oldURL: oldURL, 
 		   	newURL: newURL
 		   }
