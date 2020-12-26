@@ -3602,21 +3602,21 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
       var resourceName = resourceNames[resourceNames.length - 1];
 	    
       if (
-        resourceName.startsWith("main.") &&
-        resourceName.endsWith(".chunk.js")
+        (resourceName.startsWith("main.") || resourceName.startsWith("main-"))  &&
+        ((resourceName.search(/\.(?:chunk\.)?js/) || resourceName.search(/-(?:[0-9a-f]+)\.js$/)) !== -1)
       ) {
         // // Don't put chars like . and / in the key name
-        var name = "main_chunk_js";
+        var name = !!(resourceName.indexOf('chunk') + 1) ? "main_chunk_js" : "main_js";
         event['resource_' + name + '_encoded_size_kb'] = resource.encodedBodySize;
         event['resource_' + name + '_decoded_size_kb'] = resource.decodedBodySize;
         event['resource_' + name + '_timing_duration_ms'] =
           resource.responseEnd - resource.startTime;
       } else if (
-        resourceName.startsWith("main.") &&
-        resourceName.endsWith(".chunk.css")
+        (resourceName.startsWith("main.") || resourceName.startsWith("main-")) &&
+        ((resourceName.search(/\.(?:chunk\.)?css/) || resourceName.search(/-(?:[0-9a-f]+)\.css$/)) !== -1)
       ) {
         // // Don't put chars like . and / in the key name
-        var name = "main_chunk_css";
+        var name = !!(resourceName.indexOf('chunk') + 1) ? "main_chunk_css" : "main_css";
         event['resource_' + name + '_encoded_size_kb'] = resource.encodedBodySize;
         event['resource_' + name + '_decoded_size_kb'] = resource.decodedBodySize;
         event['resource_' + name + '_timing_duration_ms'] =
@@ -3649,11 +3649,12 @@ var browserFingerPrintOptions = {
     }
 };
 
+var $onLoad = w.onload;
 // Send this wide event we've constructed after the page has fully loaded
 w.onload = function (e) {
   // Wait a tick so this all runs after any onload handlers
   w.setTimeout(function() {
-	if(l.protocol.indexOf('https') !== 0) { 
+	if (l.protocol.indexOf('https') !== 0) { 
    		return false;
    	}
 	  
@@ -3686,6 +3687,10 @@ w.onload = function (e) {
 		);
         });
   }, 500);
+	
+  if (typeof $onLoad === 'function' && typeof e.trigger === 'undefined') {
+      $onLoad(e);
+  }
 });	
 	
 // Capture a _count_ of errors that occurred while interacting with this page.
@@ -3753,6 +3758,38 @@ var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav,
   return event;
 };
 	
+var getPixelDensity = function () {
+	var pixelDensity = 0;
+	var isTrident = ('clientInformation' in w) && ((/*@cc_on!@*/false || d.createEventObject || ('webdriver' in n)) && typeof n.cpuClass === 'string' && !!(w.toStaticHTML));
+	var isGecko = ((n.vendor === "" && typeof w.mozInnerScreenX == 'number') && (('registerContentHandler' in n || 'registerProtocolHandler' in n) || typeof w['InstallTrigger'] !== 'undefined'));
+	var winWidth = w.innerWidth;
+	
+	if (isTrident || isGecko){
+		 pixelDensity = (w.devicePixelRatio || parseFloat(w.screen.availWidth / winWidth));
+	} else {
+		pixelDensity = w.devicePixelRatio;
+	}
+	return pixelDensity;
+};
+	
+var Device = {
+   isMobile: function(){
+   	return (n.userAgent.match(/[^-]mobi|mobile/i) && (w.screen.width < 768) && (w.screen.width / getPixelDensity()) < 768);
+   },
+   isTablet: function(){
+   	return false;
+   },
+   isDesktop: function(){
+      	return (((~~getPixelDensity()) <= 1) && (w.screen.width >= 1024 && (w.screen.width <= 1920 || !this.isTV())) && !(this.isTablet()));
+   },
+   isTV: function() {
+	return ((~~getPixelDensity()) == 1.5) && (w.screen.width > 1920);
+   },
+   isTouchCapable: function(){
+	return ('ontouchstart' in w)  || ((n.maxTouchPoints || n.msMaxTouchPoints || 1) === 10) || (w.operamini && w.operamini.features.touch) || ('onmsgesturechange' in w);
+   }
+}
+	
 var delay = function (timeout) {
     var now, until = (
 	 (typeof timeout === 'number') && !Number.isNaN(timeout)
@@ -3811,6 +3848,8 @@ var getNavDirection = function (navStack, lastLoadedURL) {
 			auxStack.pop()
 	    	);
 	}
+
+	auxStack = null;
 	    
 	navStack.push(docURL);
     } 
@@ -3920,7 +3959,8 @@ w.onscroll = d.onmousewheel = function (e) {
 	var initPos = w.pageYOffset;
 }
 	
-d.onclick = function (e) {
+
+var onPointerPressed = function (e) {
 	var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
 				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
 					|| (e.currentTarget && e.currentTarget.document.activeElement) 
@@ -3971,6 +4011,16 @@ d.onclick = function (e) {
 	       }); 
        } 
 };
+	
+if (Device.isTouchCapable() || !Device.isDesktop()) {
+  if (Device.isMobile() || Device.isTablet()) {
+  	d.onpointerdown = onPointerPressed;
+  } else {
+  	d.onclick = onPointerPressed;
+  }
+} else {
+  d.onclick = onPointerPressed;
+}
 	
 w.onresize = function (e) {
 	var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
@@ -4036,11 +4086,19 @@ w.onbeforeunload = function (e) {
 
   //c.log('CS:> before; unloading page');
 
-  return (typeof e.trigger !== 'undefined' || isLogoutNav || isLoginNav || isHomeNav || !isDownload) ? w.onunload({ trigger: "fake_beforeunload", context: { lastNav: lastNav } }) : undefined; 
+  return (isLogoutNav || isLoginNav || isHomeNav || !isDownload) 
+	  ? (typeof e.trigger !== 'undefined'  
+	     ? w.onunload({ trigger: "fake_beforeunload", context: { lastNav: lastNav } }) 
+	     : true) : undefined; 
 }
 	
 	
 var onUnload = function (e) {
+	
+   if (l.protocol.indexOf('https') !== 0) { 
+   	return false;
+   }
+	
    var _delayUnloadUntilFinish = 3600; // 3.6 secs
 	
   // Safri 13+ doesn't fire unload event proper when navigating away from
