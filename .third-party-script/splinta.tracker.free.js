@@ -3603,7 +3603,7 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
 	    
       if (
         (resourceName.startsWith("main.") || resourceName.startsWith("main-"))  &&
-        ((resourceName.search(/\.(?:chunk\.)?js/) || resourceName.search(/-(?:[0-9a-f]+)\.js$/)) !== -1)
+        ((resourceName.search(/\.(?:(?:[0-9a-f]+\.)chunk\.)?js$/) || resourceName.search(/-(?:[0-9a-f]+)\.js$/)) !== -1)
       ) {
         // // Don't put chars like . and / in the key name
         var name = !!(resourceName.indexOf('chunk') + 1) ? "main_chunk_js" : "main_js";
@@ -3613,7 +3613,7 @@ var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
           resource.responseEnd - resource.startTime;
       } else if (
         (resourceName.startsWith("main.") || resourceName.startsWith("main-")) &&
-        ((resourceName.search(/\.(?:chunk\.)?css/) || resourceName.search(/-(?:[0-9a-f]+)\.css$/)) !== -1)
+        ((resourceName.search(/\.(?:(?:[0-9a-f]+\.)chunk\.)?css$/) || resourceName.search(/-(?:[0-9a-f]+)\.css$/)) !== -1)
       ) {
         // // Don't put chars like . and / in the key name
         var name = !!(resourceName.indexOf('chunk') + 1) ? "main_chunk_css" : "main_css";
@@ -3713,7 +3713,7 @@ w.onerror = function () {
 	
 
 // Returns a wide event of perf/client stats to send to CodeSplinta
-var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav, activityName) {
+var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav, activityName, eventMetaData) {
   // Capture how long the user kept this window or tab open for
   var openDuration =
     ((Date.now ? Date.now() : +(new Date)) - perf.timing.connectStart) / 1000;
@@ -3754,6 +3754,8 @@ var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav,
   	event.user_timing_window_open_duration_s = openDuration;
 	event.error_count = errorCount;
   }
+	
+  event.metadata = eventMetaData || null;
 	
   return event;
 };
@@ -4025,7 +4027,15 @@ var onPointerPressed = function (e) {
 				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
 					|| (e.currentTarget && e.currentTarget.document.activeElement) 
 				 		|| d.activeElement || {href: ''}); // Cross-Browser
-	
+	var srcElement = e.target;
+	var compStyle = w.getComputedStyle(srcElement);
+	var boundingRect = srcElement.getBoundingClientRect();
+	var rect = {
+	   left: boundingRect.x + compStyle.getPropertyValue('padding-left'),
+	   top: boundingRect.y + compStyle.getPropertyValue('padding-top'),
+	   width: boundingRect.width - (compStyle.getPropertyValue('padding-left') + compStyle.getPropertyValue('padding-right')),
+	   height: boundingRect.height - (compStyle.getPropertyValue('padding-top') + compStyle.getPropertyValue('padding-bottom'))
+	};
    	var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || w.CODE_SPLINTA.fromTracked('last_loaded_url');
 	
 	w.CODE_SPLINTA.track(
@@ -4034,15 +4044,16 @@ var onPointerPressed = function (e) {
 				'activity', 
 				w.CODE_SPLINTA.browser_fp,
 				lastNav,
-				'doc_click'
+				'doc_click',
+				{ page_click_elem_rectarea: rect, page_click_elem_idclass: srcElement.id + srcElement.className }
 			),
 			true
 	);
 	
-	if(e.target.tagName === 'A'){
+	if(srcElement.tagName === 'A'){
 			
 	       var oldURL = d.URL;
-	       var newURL = e.target.href;
+	       var newURL = srcElement.href;
 	       var isProperNav = oldURL !== newURL;
 
 	       if(perf.navigation.__polyfill){
@@ -4065,6 +4076,7 @@ var onPointerPressed = function (e) {
 		   trigger: e.type, 
 		   context: {
 			target: e.target.target,
+			download: e.target.download,
 		   	oldURL: oldURL, 
 		   	newURL: newURL
 		   }
