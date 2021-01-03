@@ -1,10 +1,10 @@
 /*!
  * Splinta.tracker.js
- * Copyright (c) 2018 - 2020 Oparand - CoolCodes
+ * Copyright (c) 2018 - 2021 Oparand - CoolCodes
  *
  * @author: Ifeora Okechukwu
  * @vendor: CoolCodes
- * @version: 0.1.5
+ * @version: 0.1.6
  */
 
  /**
@@ -3400,7 +3400,7 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
   };
   
   
-  function HTMLTrustedType(baseDefaults) {
+  function HTMLTrustedWebType(baseDefaults) {
   
       baseDefaults.baseConfig = {blockIncludes:true}
   
@@ -3408,12 +3408,12 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
   
       this.type = 'html'
   
-      return (this instanceof HTMLTrustedType ? this : new HTMLTrustedType(baseDefaults))
+      return (this instanceof HTMLTrustedWebType ? this : new HTMLTrustedWebType(baseDefaults))
   }
   
-  HTMLTrustedType.prototype = Object.create(BaseTrustedType.prototype)
+  HTMLTrustedWebType.prototype = Object.create(BaseTrustedType.prototype)
   
-  function URLTrustedType(baseDefaults){
+  function URLTrustedWebType(baseDefaults){
   
       baseDefaults.baseConfig = {blockNavigation:true}
   
@@ -3421,14 +3421,14 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
   
       this.type = 'url'
   
-      return (this instanceof URLTrustedType ? this : new URLTrustedType(baseDefaults))
+      return (this instanceof URLTrustedWebType ? this : new URLTrustedWebType(baseDefaults))
   }
   
-  URLTrustedType.prototype = Object.create(BaseTrustedType.prototype)
+  URLTrustedWebType.prototype = Object.create(BaseTrustedType.prototype)
   
-  w.TrustedTypes = {
+  w.TrustedWebTypes = {
       createTypesForm:function(){
-  
+  	throw new Error('Illegal Invocation: Cannot call `typeForms` factory');
       },
       get htmlRegistrations (){
           return $registrations['html'];
@@ -3440,21 +3440,21 @@ function(a,b){return{proxy:new g(a,b),revoke:p}};return g};var u="undefined"!==t
           return {html:[w.String], url:[w.String, w.URL]};
       },
       get URL(){
-          return new URLTrustedType({typeForms:this.typeforms['url']})
+          return new URLTrustedWebType({typeForms:this.typeforms['url']})
       },
       get HTML(){
-          return new HTMLTrustedType({typeForms:this.typeforms['html']})
+          return new HTMLTrustedWebType({typeForms:this.typeforms['html']})
       }
   };
   
-  w.TrustedTypesError = function(message){
-      this.name = 'TrustedTypesError'
+  w.TrustedWebTypesError = function(message){
+      this.name = 'TrustedWebTypesError'
       Error.apply(this, message);
   
       return this;
   };
   
-  w.TrustedTypesError.prototype = Object.create(Error.prototype);
+  w.TrustedWebTypesError.prototype = Object.create(Error.prototype);
   
   }(this));
 
@@ -3861,6 +3861,16 @@ var getNavDirection = function (navStack, lastLoadedURL) {
 if (typeof w.History === 'function') {
 	w.History.prototype.spaNavigationStack = [];
 	
+	var __replaceState = w.History.prototype.replaceState;
+	
+	w.History.prototype.replaceState = function() {
+	   var args = [].slice.call(arguments);
+		
+	   // more code here...
+		
+	   return __replaceState.apply(this, args);
+	};
+	
 	var __pushState = w.History.prototype.pushState;
 
 	w.History.prototype.pushState = function() {
@@ -3954,19 +3964,69 @@ w.onpopstate = function(e) {
        w.performance.navigation.type = 2;
   }
 };
-
-w.onscroll = d.onmousewheel = function (e) {
-	var initPos = w.pageYOffset;
-}
 	
+function throttle(fn, delay, limitDelay, getLastMarkVar) {
+  var timeout = null;
+  var isRunning = false;
+  var lastRan = 0;
+  var lastMarkVariable = getLastMarkVar();
 
+  return function throttledFn() {
+    w.clearTimeout(timeout);
+    var ctx = this;
+    var args = Array.prototype.slice.call(arguments);
+
+    timeout = w.setTimeout(function callThrottledFn() {
+      if (!isRunning) {
+        if ((Date.now() - lastRan) >= limitDelay) {
+           isRunning = true;
+           fn.apply(ctx, args.concat([lastMarkVariable]));
+	   lastMarkVariable = getLastMarkVar();
+           lastRan = Date.now();
+        }
+        isRunning = false;
+      }
+    }, delay);
+  }
+};	
+	
+var onScrollThrottled = throttle(function(e, initialPageOffsetY){
+   var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
+				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
+					|| (e.currentTarget && e.currentTarget.document.activeElement) 
+				 		|| d.activeElement || { href: '' }); // Cross-Browser
+	
+   var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || w.CODE_SPLINTA.fromTracked('last_loaded_url');
+   var currentPageOffsetY = w.scrollY || w.pageYOffset;
+
+   // while there is still room to scroll the page	
+   if (d.body.clientHeight > w.innerHeight) {
+     // and... the scrollbar of the page hasn't reached the end
+     if ((w.innerHeight + currentPageOffsetY) < d.body.scrollHeight) {
+        w.CODE_SPLINTA.track(
+			'ui-event',
+			pageActivityEvent(
+				'activity', 
+				w.CODE_SPLINTA.browser_fp,
+				lastNav,
+				'doc_scroll',
+				{last_scroll_pos: initialPageOffsetY, curr_scroll_pos: currentPageOffsetY}
+			),
+			true
+	);
+     }
+   }
+}, 300, 2100, function() { return (w.scrollY || w.pageYOffset); });
+
+w.onscroll = d.onmousewheel = onScrollThrottled;
+	
 var onPointerPressed = function (e) {
 	var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
 				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
 					|| (e.currentTarget && e.currentTarget.document.activeElement) 
-				 		|| d.activeElement || {}); // Cross-Browser
+				 		|| d.activeElement || {href: ''}); // Cross-Browser
 	
-   	var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
+   	var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || w.CODE_SPLINTA.fromTracked('last_loaded_url');
 	
 	w.CODE_SPLINTA.track(
 			'ui-event',
@@ -4046,9 +4106,9 @@ d.addEventListener("visibilitychange", function (e) {
    var lastActivatedNode = (e.explicitOriginalTarget // old/new Firefox
 				|| (e.srcDocument && e.srcDocument.activeElement) // old Chrome/Safari
 					|| (e.currentTarget && e.currentTarget.document.activeElement) 
-			    			|| d.activeElement || {}); // Cross-Browser
+			    			|| d.activeElement || { href: '' }); // Cross-Browser
 	
-   var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || '';
+   var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href ||  w.CODE_SPLINTA.fromTracked('last_loaded_url');
   
    return w.CODE_SPLINTA.track(
 	'ui-event',
@@ -4056,7 +4116,8 @@ d.addEventListener("visibilitychange", function (e) {
 		'activity',
 		w.CODE_SPLINTA.browser_fp,
 		lastNav,
-		'doc_visibility'
+		'doc_visibility',
+		{page_state: getPageState()}
 	),
 	true
   );
@@ -4317,8 +4378,10 @@ X-Webkit-CSP: default-src 'self'; style-src 'self' 'unsafe-inline' https: 'nonce
 	    d.head.insertBefore(metaTag, xdMetaTag);
 	});
 	
-}(this, this.document, this.navigator, this.console || {error: function(){ }));
+}(this, this.document, this.navigator, this.console || {error: function(){ }}));
 
+							
+							
  /**
   * Detect Incognito Mode
   * 
@@ -4460,7 +4523,6 @@ return detectPrivateMode(function(isPrivate) {
 })
 
 }))));
-
 
 /**
  Redirect [ Console ] output to a remote server when the 
