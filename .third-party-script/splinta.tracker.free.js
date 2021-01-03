@@ -3493,6 +3493,11 @@ Object.defineProperty(d, 'referredFrom', {
 		return w.CODE_SPLINTA.formTracked('last_loaded_url');
 	}
 });
+	
+/** 
+ * The code below was culled from: https://www.honeycomb.io/blog/instrumenting-browser-page-loads-at-honeycomb/
+ * and was adapted and modified to CODE SPLINTA
+ */
 
 var pageLoadEvent = function(pageEventName, browserFingerPrint, pageLastNav) {
   var nt = perf.timing;
@@ -3710,7 +3715,11 @@ w.onerror = function () {
 	
   errorCount++;
 };
-	
+
+/** 
+ * The code below was culled from: https://www.honeycomb.io/blog/instrumenting-browser-page-loads-at-honeycomb/
+ * and was adapted and modified to CODE SPLINTA
+ */
 
 // Returns a wide event of perf/client stats to send to CodeSplinta
 var pageActivityEvent = function(pageEventName, browserFingerPrint, pageLastNav, activityName, eventMetaData) {
