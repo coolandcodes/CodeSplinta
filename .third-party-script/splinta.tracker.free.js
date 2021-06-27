@@ -3709,9 +3709,13 @@ w.onload = function (e) {
 // experience on this page potentially impacted by JS errors?"
 var $oldOnError = w.onerror;
 var errorCount = 0;
-w.onerror = function () {
+w.onerror = function (errorMsg) {
   var args = [].slice.call(arguments);
-	
+
+  if (errorMsg.indexOf('Script error.') > -1) {
+    // we must not record the usual cryptic 'script errors'
+    return;
+  }
   // call any previously defined onError handlers
   if ( typeof $oldOnError === 'function' ) {
      $oldOnError.apply(this, args);
@@ -4037,6 +4041,23 @@ var onPointerPressed = function (e) {
 	};
    	var lastNav = getPageState() !== 'active' ? d.URL : lastActivatedNode.href || w.CODE_SPLINTA.fromTracked('last_loaded_url');
 	
+	var action = "clicking";
+
+	  switch(e.pointerType) {
+	    case "mouse":
+	      action = "clicking";
+	      break;
+	    case "pen":
+	      action = "tapping";
+	      break;
+	    case "touch":
+	      action = "touching";
+	      break;
+	    default:
+	      action = "interacting with";
+	      break;
+	  }
+	
 	w.CODE_SPLINTA.track(
 			'ui-event',
 			pageActivityEvent(
@@ -4044,7 +4065,7 @@ var onPointerPressed = function (e) {
 				w.CODE_SPLINTA.browser_fp,
 				lastNav,
 				'doc_click',
-				{ page_click_elem_rectarea: rect, page_click_elem_idclass: srcElement.id + srcElement.className }
+				{ page_user_action_elem_rectarea: rect, page_user_action_elem_idclass: srcElement.id + srcElement.className, page_user_action: action }
 			),
 			true
 	);
@@ -4076,18 +4097,26 @@ var onPointerPressed = function (e) {
 		   context: {
 			target: e.target.target,
 			download: e.target.download,
+			actio: action,
 		   	oldURL: oldURL, 
 		   	newURL: newURL
 		   }
 	       }); 
        } 
+	
+       // e.preventDefault()
 };
 	
 if (Page.isTouchCapable() || !Page.isDesktop()) {
   if (Page.isMobile() || Page.isTablet()) {
-  	d.onpointerdown = onPointerPressed;
+	d.onpointerdown = onPointerPressed;
   } else {
-  	d.onclick = onPointerPressed;
+	if (typeof w.msCrypto !== 'undefined' || typeof ({}) !== 'undefined') {
+	  w.onmspointerdown = onPointerPressed;
+	} else {
+	  w.onpointerdown = onPointerPressed;
+	}
+  	// d.onclick = onPointerPressed;
   }
 } else {
   d.onclick = onPointerPressed;
@@ -5786,11 +5815,11 @@ return detectPrivateMode(function(isPrivate) {
 			throw new Error("Suspicious Activity: " + event.detail.node + " was ["+ event.detail.action+"] in an untrustworthy manner");
 		}
 		
-		node = DOMPurify.sanitize(node.valueOf(), {
+		node = new DOMParser().parseFromString(DOMPurify.sanitize(node.valueOf(), {
 			IN_PLACE: true     
-    });
+    		}), "text/html");
 		
-		return NativeAppendChild.apply(this, [node.valueOf()]); 
+		return NativeAppendChild.apply(this, [node.body.valueOf()]); 
 	};
 	
 	Object.defineProperty(FakeAppendChild, 'toString', {
@@ -5825,11 +5854,11 @@ return detectPrivateMode(function(isPrivate) {
 			throw new Error("Suspicious Activity: " + event.detail.node + " was ["+ event.detail.action+"] in an untrustworthy manner");
 		}
 		
-		node = DOMPurify.sanitize(node.valueOf(), {
+		node = new DOMParser().parseFromString(DOMPurify.sanitize(node.valueOf(), {
 			IN_PLACE: true     
-    });
+    		}), "text/html");
 		
-		return NativeRemoveChild.apply(this, [node.valueOf()]); 
+		return NativeRemoveChild.apply(this, [node.body.valueOf()]); 
 	};
 	
 	Object.defineProperty(FakeRemoveChild, 'toString', {
@@ -5849,11 +5878,11 @@ return detectPrivateMode(function(isPrivate) {
 	
 	var FakeReplaceChild = function(newChild, oldChild){ 
 		
-		newChild = DOMPurify.sanitize(newChild.valueOf(), {
+		newChild = new DOMParser().parseFromString(DOMPurify.sanitize(newChild.valueOf(), {
 			IN_PLACE: true     
-	     	});
+	     	}), "text/html");
 		
-		return NativeReplaceChild.apply(this, [newChild.valueOf(), oldChild.valueOf()]); 
+		return NativeReplaceChild.apply(this, [newChild.body.valueOf(), oldChild.valueOf()]); 
 	};
 	
 	Object.defineProperty(FakeReplaceChild, 'toString', {
@@ -5871,12 +5900,12 @@ return detectPrivateMode(function(isPrivate) {
 	var NativeInsertBefore = Element.prototype.replaceChild;
 	
 	var FakeInsertBefore = function(newNode, refNode){ 
-		
-		newNode = DOMPurify.sanitize(newNode.valueOf(), {
+
+		newNode = new DOMParser().parseFromString(DOMPurify.sanitize(newNode.valueOf(), {
 			IN_PLACE: true     
-    		});
+    		}), "text/html");
 		
-		return NativeInsertBefore.apply(this, [newNode.valueOf(), refNode.valueOf()]); 
+		return NativeInsertBefore.apply(this, [newNode.body.valueOf(), refNode.valueOf()]); 
 	};
 	
 	Object.defineProperty(FakeInsertBefore, 'toString', {
