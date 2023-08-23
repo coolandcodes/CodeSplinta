@@ -280,7 +280,7 @@ window.document.addEventListener('MutatedDOM', function(e){
 			/* Setup policy sanitizer for URL trusted types  */
 			window.TrustedTypes.URL.registerPolicySanitizer('basic-policy', function(TrustedType){
 				return function(url){
-					return window.URISanity.vet(url);
+					return window.urisanity.vet(url);
 				};
 			});
 		}
